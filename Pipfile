@@ -1,0 +1,44 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://download.pytorch.org/whl/cu117"
+verify_ssl = true
+name = "pytorch"
+# [[source]]
+# name = "pytorch-geometric"
+# url = "https://data.pyg.org/whl/torch-1.13.1"
+# verify_ssl = true
+
+[packages]
+torch = {index = "pytorch", version = "1.13.1"}
+ase = "3.21.1"
+black = "22.3.0"
+matplotlib = "*"
+numba = "*"
+pymatgen = "2020.12.31"
+pyyaml = "*"
+tensorboard = "*"
+tqdm = "*"
+lmdb = "*"
+submitit = "*"
+wandb = "*"
+# pyg-lib = {index = "pytorch-geometric", version= "*"}
+# Doesn't work so install through pip
+# torch-scatter = {index= "pytorch-geometric", version= "*"}
+# torch-sparse = {index= "pytorch-geometric", version= "*"}
+# torch-cluster = {index= "pytorch-geometric", version= "*"}
+# torch-spline-conv = {index= "pytorch-geometric", version= "*"}
+# torch-geometric = {index= "pytorch-geometric", version= "*"}
+
+[dev-packages]
+pre-commit = "2.10"
+pytest = "*"
+syrupy = "*"
+ocp-models = {editable = true, path = "."}
+
+[requires]
+python_version = "3.9"
+python_full_version = "3.9.16"
