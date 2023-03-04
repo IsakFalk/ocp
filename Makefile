@@ -2,10 +2,10 @@ initialize_pipenv_venv:
 	pipenv --python 3.9
 
 franklin_setup_symbolic_links:
-	ln -s /projects/mlcompchem/ocp/data data
-	ln -s /projects/mlcompchem/ocp/checkpoints checkpoints
-	ln -s /projects/mlcompchem/ocp/results results
-	ln -s /projects/mlcompchem/ocp/logs logs
+	ln -s /projects/mlcompchem/ocp/data data\
+	&& ln -s /projects/mlcompchem/ocp/checkpoints checkpoints\
+	&& ln -s /projects/mlcompchem/ocp/results results\
+	&& ln -s /projects/mlcompchem/ocp/logs logs\
 
 install_cpu:
 	cp cpu-Pipfile Pipfile\
