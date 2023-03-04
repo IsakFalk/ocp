@@ -56,6 +56,7 @@ python scripts/download_data.py --task s2ef --split SPLIT_SIZE --get-edges --num
 * `--get-edges`: includes edge information in LMDBs (~10x storage requirement, ~3-5x slowdown), otherwise, compute edges on the fly (larger GPU memory requirement).
 * `--num-workers`: number of workers to parallelize preprocessing across.
 * `--ref-energy`: uses referenced energies instead of raw energies.
+* `--keep`: keeps intermediate directories around.
 
 For S2EF test, run the script as:
 
@@ -89,26 +90,26 @@ For the test sets, we provide precomputed LMDBs for each of the 4 subsplits (In 
 
 Each tarball has a README file containing details about file formats, number of structures / trajectories, etc.
 
-|Splits |Size of compressed version (in bytes)  |Size of uncompressed version (in bytes)    | MD5 checksum (download link)   |
-|---    |---    |---    |---    |
-|Train  |   |   |   |   |
-|all    |225G   |1.1T   | [12a7087bfd189a06ccbec9bc7add2bcd](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_train_all.tar)   |
-|20M    |34G    |165G   | [863bc983245ffc0285305a1850e19cf7](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_train_20M.tar)   |
-|2M |3.4G   |17G    | [953474cb93f0b08cdc523399f03f7c36](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_train_2M.tar)   |
-|200K   |344M   |1.7G   | [f8d0909c2623a393148435dede7d3a46](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_train_200K.tar)   |
-|   |   |   |   |   |
-|Validation |   |   |   |   |
-|val_id |1.7G   |8.3G   | [f57f7f5c1302637940f2cc858e789410](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_val_id.tar)   |
-|val_ood_ads    |1.7G   |8.2G   | [431ab0d7557a4639605ba8b67793f053](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_val_ood_ads.tar)   |
-|val_ood_cat    |1.7G   |8.3G   | [532d6cd1fe541a0ddb0aa0f99962b7db](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_val_ood_cat.tar)   |
-|val_ood_both   |1.9G   |9.5G   | [5731862978d80502bbf7017d68c2c729](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_val_ood_both.tar)   |
-|   |   |   |   |   |
-|Test (LMDBs for all splits)    |30G    |415G   | [bcada432482f6e87b24e14b6b744992a](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_test_lmdbs.tar.gz)   |
-|   |   |   |   |   |
-|Rattled data   |29G    |136G   | [40431149b27b64ce1fb40cac4e2e064b](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_rattled.tar)   |
-|   |   |   |   |   |
-|MD data    |42G    |306G   | [9fed845aaab8fb4bf85e3a8db57796e0](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_md.tar)   |
-|   |   |   |   |
+| Splits                      | Size of compressed version (in bytes) | Size of uncompressed version (in bytes) | MD5 checksum (download link)                                                                                       |   |
+|-----------------------------|---------------------------------------|-----------------------------------------|--------------------------------------------------------------------------------------------------------------------|---|
+| Train                       |                                       |                                         |                                                                                                                    |   |
+| all                         | 225G                                  | 1.1T                                    | [12a7087bfd189a06ccbec9bc7add2bcd](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_train_all.tar)     |   |
+| 20M                         | 34G                                   | 165G                                    | [863bc983245ffc0285305a1850e19cf7](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_train_20M.tar)     |   |
+| 2M                          | 3.4G                                  | 17G                                     | [953474cb93f0b08cdc523399f03f7c36](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_train_2M.tar)      |   |
+| 200K                        | 344M                                  | 1.7G                                    | [f8d0909c2623a393148435dede7d3a46](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_train_200K.tar)    |   |
+|                             |                                       |                                         |                                                                                                                    |   |
+| Validation                  |                                       |                                         |                                                                                                                    |   |
+| val_id                      | 1.7G                                  | 8.3G                                    | [f57f7f5c1302637940f2cc858e789410](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_val_id.tar)        |   |
+| val_ood_ads                 | 1.7G                                  | 8.2G                                    | [431ab0d7557a4639605ba8b67793f053](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_val_ood_ads.tar)   |   |
+| val_ood_cat                 | 1.7G                                  | 8.3G                                    | [532d6cd1fe541a0ddb0aa0f99962b7db](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_val_ood_cat.tar)   |   |
+| val_ood_both                | 1.9G                                  | 9.5G                                    | [5731862978d80502bbf7017d68c2c729](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_val_ood_both.tar)  |   |
+|                             |                                       |                                         |                                                                                                                    |   |
+| Test (LMDBs for all splits) | 30G                                   | 415G                                    | [bcada432482f6e87b24e14b6b744992a](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_test_lmdbs.tar.gz) |   |
+|                             |                                       |                                         |                                                                                                                    |   |
+| Rattled data                | 29G                                   | 136G                                    | [40431149b27b64ce1fb40cac4e2e064b](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_rattled.tar)       |   |
+|                             |                                       |                                         |                                                                                                                    |   |
+| MD data                     | 42G                                   | 306G                                    | [9fed845aaab8fb4bf85e3a8db57796e0](https://dl.fbaipublicfiles.com/opencatalystproject/data/s2ef_md.tar)            |   |
+|                             |                                       |                                         |                                                                                                                    |   |
 
 
 
