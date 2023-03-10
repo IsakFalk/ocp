@@ -25,7 +25,7 @@ class EnergyTrainer(BaseTrainer):
     .. note::
 
         Examples of configurations for task, model, dataset and optimizer
-        can be found in `configs/ocp_is2re <https://github.com/Open-Catalyst-Project/baselines/tree/master/configs/ocp_is2re/>`_.
+        can be found in `configs/is2re <https://github.com/Open-Catalyst-Project/baselines/tree/main/configs/is2re/>`_.
 
 
     Args:
