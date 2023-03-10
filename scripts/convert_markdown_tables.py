@@ -83,6 +83,7 @@ def transform_is2re_table(datapath):
             data_dict[key] = None
         line_of_dicts.append(data_dict)
 
+
     df = pd.DataFrame(line_of_dicts)
     df.to_csv(datapath / "model_table_is2re.tsv", sep="\t", index=False)
 
@@ -182,6 +183,7 @@ def transform_s2ef_optimized_force_table(datapath):
 def main(args):
     datapath = args.data_path
     datapath = Path(datapath) / "auxiliary" / "oc20"
+    datapath.mkdir(parents=True, exist_ok=True)
     logging.info("Transforming MD tables to tsv...")
     logging.info("Transforming IS2RE table...")
     transform_is2re_table(datapath)
