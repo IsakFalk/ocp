@@ -11,11 +11,43 @@ import logging
 
 import ocpmodels
 
+def extract_text_tables():
+    """Extract text tables from the MODELS.md file."""
+    with open(os.path.join(ocpmodels.__path__[0], "..", "MODELS.md"), "r") as f:
+        models_md = f.read()
+    lines_list = models_md.split("\n")
+
+    # S2EF optimized for EFwT
+    idx = lines_list.index("## S2EF models: optimized for EFwT") + 2
+    table_s2ef_optimized_efwt = []
+    while lines_list[idx].startswith("|"):
+        table_s2ef_optimized_efwt.append(lines_list[idx])
+        idx += 1
+    table_s2ef_optimized_efwt = "\n".join(table_s2ef_optimized_efwt)
+
+    # S2EF optimized for force
+    idx = lines_list.index("## S2EF models: optimized for force only") + 2
+    table_s2ef_optimized_force = []
+    while lines_list[idx].startswith("|"):
+        table_s2ef_optimized_force.append(lines_list[idx])
+        idx += 1
+    table_s2ef_optimized_force = "\n".join(table_s2ef_optimized_force)
+
+    # IS2RE models
+    idx = lines_list.index("## IS2RE models") + 2
+    table_is2re = []
+    while lines_list[idx].startswith("|"):
+        table_is2re.append(lines_list[idx])
+        idx += 1
+    table_is2re = "\n".join(table_is2re)
+
+    return table_s2ef_optimized_efwt, table_s2ef_optimized_force, table_is2re
+
+table_s2ef_optimized_efwt, table_s2ef_optimized_force, table_is2re = extract_text_tables()
 
 def transform_is2re_table(datapath):
     """Transforms the IS2RE table to a tsv file."""
-    with open(datapath / "model_table_is2re.md", "r") as f:
-        tab = f.read()
+    tab = table_is2re
 
     # Preprocess
     tab = tab[1:]
@@ -57,8 +89,7 @@ def transform_is2re_table(datapath):
 
 def transform_s2ef_optimized_efwt_table(datapath):
     """Transforms the S2EF table to a tsv file."""
-    with open(datapath / "model_table_s2ef_optimized_efwt.md", "r") as f:
-        tab = f.read()
+    tab = table_s2ef_optimized_efwt
 
     # Preprocess by removing the first
     tab = tab[1:]
@@ -102,13 +133,9 @@ def transform_s2ef_optimized_efwt_table(datapath):
         datapath / "model_table_s2ef_optimized_efwt.tsv", sep="\t", index=False
     )
 
-
 def transform_s2ef_optimized_force_table(datapath):
     """Transforms the S2EF table to a tsv file."""
-    datapath = os.path.join(os.path.dirname(ocpmodels.__path__[0]), "data")
-    datapath = Path(datapath) / "auxiliary" / "oc20"
-    with open(datapath / "model_table_s2ef_optimized_force.md", "r") as f:
-        tab = f.read()
+    tab = table_s2ef_optimized_force
 
     # Preprocess
     tab = tab[1:]
