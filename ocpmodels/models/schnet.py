@@ -33,6 +33,9 @@ class SchNetWrap(SchNet, BaseModel):
         num_atoms (int): Unused argument
         bond_feat_dim (int): Unused argument
         num_targets (int): Number of targets to predict.
+        representation (bool, optional): If set to :obj:`True`, the model will output intermediate representation output
+            from the 'representation_layer' interaction block. (default: :obj:`False`)
+        representation_layer (int, optional): The interaction block to output the representation from.
         use_pbc (bool, optional): If set to :obj:`True`, account for periodic boundary conditions.
             (default: :obj:`True`)
         regress_forces (bool, optional): If set to :obj:`True`, predict forces by differentiating
@@ -59,6 +62,8 @@ class SchNetWrap(SchNet, BaseModel):
         num_atoms,  # not used
         bond_feat_dim,  # not used
         num_targets,
+        representation=False,
+        representation_layer=None,
         use_pbc=True,
         regress_forces=True,
         otf_graph=False,
@@ -70,6 +75,8 @@ class SchNetWrap(SchNet, BaseModel):
         readout="add",
     ):
         self.num_targets = num_targets
+        self.representation = representation
+        self.representation_layer = representation_layer
         self.regress_forces = regress_forces
         self.use_pbc = use_pbc
         self.cutoff = cutoff
@@ -84,6 +91,11 @@ class SchNetWrap(SchNet, BaseModel):
             cutoff=cutoff,
             readout=readout,
         )
+        # Added by: Isak Falk
+        # If using the model as representation we output the intermediate layer
+        if self.representation:
+            self.interactions = self.interactions[:self.representation_layer]
+            self.regress_forces = False
 
     @conditional_grad(torch.enable_grad())
     def _forward(self, data):
@@ -98,8 +110,10 @@ class SchNetWrap(SchNet, BaseModel):
             cell_offsets,
             _,  # cell offset distances
             neighbors,
-        ) = self.generate_graph(data)
+        ) = self.generate_graph(data) # See the BaseModel.generate_graph method for more details
 
+        # Added by: Isak Falk
+        # Intermediate representation only works for self.use_pbc=True
         if self.use_pbc:
             assert z.dim() == 1 and z.dtype == torch.long
 
@@ -108,6 +122,8 @@ class SchNetWrap(SchNet, BaseModel):
             h = self.embedding(z)
             for interaction in self.interactions:
                 h = h + interaction(h, edge_index, edge_weight, edge_attr)
+            if self.representation:
+                return h
 
             h = self.lin1(h)
             h = self.act(h)
@@ -116,6 +132,7 @@ class SchNetWrap(SchNet, BaseModel):
             batch = torch.zeros_like(z) if batch is None else batch
             energy = scatter(h, batch, dim=0, reduce=self.reduce)
         else:
+            # Cannot use this for representation
             energy = super(SchNetWrap, self).forward(z, pos, batch)
         return energy
 
