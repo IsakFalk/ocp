@@ -90,7 +90,7 @@ def download_checkpoint(datapath, checkpointpath, model, task, split):
             f"Scalefile saved to {output_checkpoint_dir_path}/{scalefile_link.split('/')[-1]}"
         )
     logging.info(
-        f"Config yaml find can be found at: ocp/{row['config'].item().split('main/')[-1]}"
+        f"Config yaml find can be found at: {os.path.join(os.path.dirname(ocpmodels.__path__[0])}/{row['config'].item().split('main/')[-1]}"
     )
 
 
