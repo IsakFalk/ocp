@@ -1,9 +1,9 @@
 """Added by Isak Falk
 
-Copyright (c) Facebook, Inc. and its affiliates.
+This file contains extra classes and functions that are not part of the original OCP code.
 
-This source code is licensed under the MIT license found in the
-LICENSE file in the root directory of this source tree.
+At some point we will refactor this code to be more in line with the original
+OCP code. For now, we just want to get it working.
 """
 import datetime
 import errno
@@ -44,6 +44,12 @@ from ocpmodels.modules.scaling.util import ensure_fitted
 from ocpmodels.modules.scheduler import LRScheduler
 
 class BaseLoader:
+    """Base class for model loaders.
+
+    Load a model from a config file and potentially load the checkpoint state_dict
+    """
+
+    # Unused for now
     @property
     def _unwrapped_model(self):
         module = self.model
@@ -54,13 +60,17 @@ class BaseLoader:
     def __init__(
         self,
         model,
+        representation=False,
+        representation_kwargs={},
         seed=None,
         cpu=False,
         name="base_model_loader",
     ):
         self.name = name
-        self.cpu = cpu
-        self.num_targets = 1
+        self.representation = representation
+        self.representation_kwargs = representation_kwargs
+        self.cpu = cpu # TODO: Have not been tested with cuda but should work
+        self.num_targets = 1 # NOTE: This is due to OCP code and should be fixed to 1
 
         # Don't mutate the original model dict
         model = copy.deepcopy(model)
@@ -71,12 +81,17 @@ class BaseLoader:
             self.device = torch.device("cpu")
             self.cpu = True
 
+        # Due to how the internals of OCP work, we need to separate the name of the model class
+        # and the attributes of the model class. This is done by the "model" and "model_attributes".
+        # If the config is loaded from a checkpoint file, this allows us to recreate the correct model
+        # and load the state_dict automatically
         self.config = {
             "model": model.pop("model"),
             "model_attributes": model["model_attributes"],
             "seed": seed
         }
 
+        # Print the current config to stdout
         print(yaml.dump(self.config, default_flow_style=False))
         self.load()
 
@@ -85,6 +100,7 @@ class BaseLoader:
         self.load_model()
 
     def load_seed_from_config(self):
+        """Set random seed from config file."""
         # https://pytorch.org/docs/stable/notes/randomness.html
         seed = self.config["seed"]
         if seed is None:
@@ -98,24 +114,34 @@ class BaseLoader:
         torch.backends.cudnn.benchmark = False
 
     def load_model(self):
-        # Make registry available
+        """Load the model from the config file."""
+
+        # The OCP repo use a funny registry which allows them to load classes
+        # using strings through a key-value store mapping strings to the correct
+        # class object
+        # This makes the registry available
         from ocpmodels.common.utils import setup_imports
         setup_imports()
 
         # Build model
         if distutils.is_master():
             logging.info(f"Loading model: {self.config['model']}")
+            if self.representation:
+                logging.info(f"Model used for representation")
 
-        # TODO: depreicated, remove.
+        # TODO: Says it's depeciated in the OCP code but it's required for now
         bond_feat_dim = None
         bond_feat_dim = self.config["model_attributes"].get(
             "num_gaussians", 50
         )
 
+        # Load the model class from the registry
         self.model = registry.get_model_class(self.config["model"])(
             None,
             bond_feat_dim,
             self.num_targets,
+            self.representation,
+            **self.representation_kwargs,
             **self.config["model_attributes"],
         ).to(self.device)
 
