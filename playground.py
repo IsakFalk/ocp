@@ -40,6 +40,7 @@ a2g = AtomsToGraphs(
 data_object = a2g.convert_all(raw_data, disable_tqdm=True)
 data_batch = Batch.from_data_list(data_object)
 num_atoms = data_batch[0].num_nodes
+num_frames = data_batch.num_graphs
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -185,5 +186,141 @@ ax.fill_between(x, d_mean - d_std, d_mean + d_std, color='blue', alpha=0.2)
 ax.set_xlabel("Representation Layer")
 ax.set_ylabel("MSE")
 ax.legend()
+plt.tight_layout()
+fig.savefig("regression.png")
+
+### Create distribution regression
+### Output is assumed to be in \R and
+### we have T snapshots, indexed by t, and the system is
+### described by N atoms, indexed by i.
+### This means that the kernel (when using some pointwise kernel K)
+### is of size T x T
+### Call this gram matrix K, then
+### K_{t, l} = torch.sum(G^{t, l}) / N**2 where
+### G^{t, l}_{i, j} = K(x^{t}_{i}, x^{l}_{j})
+### Thus, the only thing we need to do is to build a kernel tensor
+### of size T x T x N x N and then sum over the last two dimensions
+### (or equivalently)
+
+from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+
+import numpy as np
+
+import torch.linalg as LA
+
+def gaussian_mean_embedding_kernel(x, y, sigma=1.0):
+    """Compute the mean embedding kernel between two sets of points.
+
+    x and y are tensors of shape (num_frames, num_atoms, num_features)"""
+    t, n, d = x.shape
+    l, m, d = y.shape
+    x = x.reshape(t * n, d)
+    y = y.reshape(l * m, d)
+    Dsq = (torch.cdist(x, y, p=2)**2)
+    K = torch.exp(-Dsq / (2 * sigma**2))
+    K = K.reshape(t, n, l, m).sum(axis=(1, 3)) / (n * m)
+    return K
+
+def median_heuristic(x, y):
+    return torch.median(torch.cdist(x, y, p=2))
+
+class GaussianKernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
+    def __init__(self, lmbda=1.0, sigma=1.0, fit_sigma_using_median_heuristic=False):
+        self.lmbda = lmbda
+        self.sigma = sigma
+        self.fit_sigma_using_median_heuristic = fit_sigma_using_median_heuristic
+
+    def fit(self, X, y):
+        assert len(X.shape) == 3
+        if self.fit_sigma_using_median_heuristic:
+            self.sigma = median_heuristic(X, X)
+        self.X = X
+        self.y = y
+
+        K = gaussian_mean_embedding_kernel(X, X, sigma=self.sigma)
+        Kl = K + torch.eye(K.shape[0]) * self.lmbda
+        self.K = K
+        self.alpha = LA.solve(Kl, y)
+        return self
+
+    def predict(self, X):
+        assert len(X.shape) == 3
+        K = gaussian_mean_embedding_kernel(X, self.X, sigma=self.sigma)
+        return K @ self.alpha
+
+    def score(self, X, y):
+        y_pred = self.predict(X)
+        return mean_squared_error(y, y_pred)
+
+
+y = data_batch.y.detach().cpu()
+y = y.reshape(-1, 1).float()
+
+mse_dist_krr = []
+mse_dummy = []
+for representation_layer in range(1, 6):
+    base_loader = BaseLoader(checkpoint["config"],
+                             representation=True,
+                             representation_kwargs={
+                                 "representation_layer": representation_layer
+                             })
+    base_loader.load_checkpoint(CHECKPOINT_PATH, strict_load=False)
+    model = base_loader.model
+    model.to(device)
+    model.eval()
+
+    with torch.no_grad():
+        phi = model(data_batch)
+    phi = phi.detach().cpu()
+    phi = phi.reshape(num_frames, num_atoms, -1)
+    mse_temp =  []
+    for _ in range(25):
+        X_train, X_test, y_train, y_test = train_test_split(phi, y, test_size=0.2)
+
+        sigma = median_heuristic(phi, phi)
+        gkmerr = GaussianKernelMeanEmbeddingRidgeRegression(lmbda=1e-6, sigma=sigma)
+
+        y_mean = y_train.mean()
+        gkmerr.fit(X_train, y_train - y_mean)
+        y_pred = gkmerr.predict(X_test) + y_mean
+
+        mse_temp.append(mean_squared_error(y_test, y_pred))
+        mse_dummy.append(mean_squared_error(y_test, torch.ones_like(y_test) * y_mean))
+    mse_dist_krr.append(mse_temp)
+
+# Finally with original model
+base_loader = BaseLoader(checkpoint["config"],
+                         representation=False,
+                         representation_kwargs={
+                             "representation_layer": representation_layer
+                         })
+base_loader.load_checkpoint(CHECKPOINT_PATH, strict_load=False)
+model = base_loader.model
+model.to(device)
+model.eval()
+
+y_pred = model(data_batch)[0].detach().cpu()
+mean_squared_error(y, y_pred)
+
+fig, ax = plt.subplots(1, 2, figsize=(3 * 3, 3))
+mse_dummy = np.array(mse_dummy)
+boxplot_array = np.vstack([np.array(x) for x in mse_dist_krr]).T
+ax[0].boxplot(boxplot_array,
+           labels=[f"layer {i}" for i in range(1, 6)],
+           showbox=True, showcaps=False)
+ax[0].set_ylabel("MSE")
+ax[0].set_title("GKMERR with different output layer")
+ax[0].tick_params(axis='x', rotation=-45)
+ax[0].set_yscale("log")
+
+mse_dummy.shape
+ax[1].boxplot(mse_dummy,
+           labels=["Mean estimator"],
+           showbox=True, showcaps=False)
+ax[1].set_ylabel("MSE")
+ax[1].set_title("Mean estimator")
+ax[1].set_yscale("log")
 plt.tight_layout()
 fig.savefig("regression.png")
