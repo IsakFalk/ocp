@@ -241,7 +241,7 @@ for representation_layer in range(1, 2):
         phi = model(data_batch)
     phi = phi.detach().cpu()
     phi = phi.reshape(num_frames, num_atoms, -1)
-    mse_dist_krr_temp =  []
+    mse_dist_krr_temp = []
     mse_soap_krr_temp = []
     for _ in range(25):
         train_idx, test_idx = train_test_split(np.arange(num_frames), test_size=0.2)

@@ -71,7 +71,7 @@ class BaseLoader:
     def __init__(
         self,
         model,
-        representation=False,
+        representation: bool =False,
         representation_kwargs={},
         seed=None,
         cpu=False,
@@ -140,7 +140,7 @@ class BaseLoader:
             if self.representation:
                 logging.info(f"Model used for representation")
 
-        # TODO: Says it's depeciated in the OCP code but it's required for now
+        # TODO: Says it's deprecated in the OCP code but it's required for now
         bond_feat_dim = None
         bond_feat_dim = self.config["model_attributes"].get(
             "num_gaussians", 50
@@ -199,7 +199,7 @@ class BaseLoader:
 
         # NOTE: Their custom state_dict loader breaks for some unknown reason
         # related to the keys. This is due to the method ocpmodels.common.utils._report_incompat_keys
-        #load_state_dict(self.model, new_dict, strict=strict_load)
+        # load_state_dict(self.model, new_dict, strict=strict_load)
         # Instead we mimic the checks they would do here taking care of errors
         incompat_keys = self.model.load_state_dict(new_dict, strict=strict_load)
 
@@ -244,7 +244,7 @@ def gaussian_mean_embedding_kernel(x, y, sigma=1.0):
     l, m, d = y.shape
     x = x.reshape(t * n, d)
     y = y.reshape(l * m, d)
-    Dsq = (torch.cdist(x, y, p=2)**2)
+    Dsq = torch.cdist(x, y, p=2)**2
     K = torch.exp(-Dsq / (2 * sigma**2))
     K = K.reshape(t, n, l, m).sum(axis=(1, 3)) / (n * m)
     return K
@@ -279,19 +279,19 @@ class GaussianKernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
         assert len(X.shape) == 3
         if self.fit_sigma_using_median_heuristic:
             self.sigma = median_heuristic(X, X)
-        self.X = X
-        self.y = y
+        self._X = X
+        self._y = y
 
         K = gaussian_mean_embedding_kernel(X, X, sigma=self.sigma)
         Kl = K + torch.eye(K.shape[0]) * self.lmbda
-        self.K = K
-        self.alpha = LA.solve(Kl, y)
+        self._K = K
+        self._alpha = LA.solve(Kl, y)
         return self
 
     def predict(self, X):
         assert len(X.shape) == 3
         K = gaussian_mean_embedding_kernel(X, self.X, sigma=self.sigma)
-        return K @ self.alpha
+        return K @ self._alpha
 
     def score(self, X, y):
         y_pred = self.predict(X)
