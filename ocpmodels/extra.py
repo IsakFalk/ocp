@@ -15,6 +15,17 @@ import copy
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
+from pathlib import Path
+import yaml
+from pprint import pprint
+
+from torch_geometric.data import Batch
+from torch_geometric.nn import SumAggregation
+import torch
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -216,3 +227,110 @@ class BaseLoader:
                 raise RuntimeError(error_msg)
             else:
                 logging.warning(error_msg)
+
+### Estimators and distribution regression
+def gaussian_mean_embedding_kernel(x, y, sigma=1.0):
+    """
+    Calculate the Gaussian mean embedding kernel between two sets of points.
+
+    Parameters:
+        x (torch.Tensor): A 3-dimensional tensor representing a set of t sets of n d-dimensional points.
+        y (torch.Tensor): A 3-dimensional tensor representing a set of l sets of m d-dimensional points.
+        sigma (float): The standard deviation of the Gaussian kernel used when calculating the kernel.
+    Returns:
+        torch.Tensor: A 2-dimensional tensor representing the kernel matrix of size t x l.
+    """
+    t, n, d = x.shape
+    l, m, d = y.shape
+    x = x.reshape(t * n, d)
+    y = y.reshape(l * m, d)
+    Dsq = (torch.cdist(x, y, p=2)**2)
+    K = torch.exp(-Dsq / (2 * sigma**2))
+    K = K.reshape(t, n, l, m).sum(axis=(1, 3)) / (n * m)
+    return K
+
+def median_heuristic(x, y):
+    return torch.median(torch.cdist(x, y, p=2))
+
+from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.metrics import mean_squared_error
+import torch.linalg as LA
+
+### Create distribution regression
+### Output is assumed to be in \R and
+### we have T snapshots, indexed by t, and the system is
+### described by N atoms, indexed by i.
+### This means that the kernel (when using some pointwise kernel K)
+### is of size T x T
+### Call this gram matrix K, then
+### K_{t, l} = torch.sum(G^{t, l}) / N**2 where
+### G^{t, l}_{i, j} = K(x^{t}_{i}, x^{l}_{j})
+### Thus, the only thing we need to do is to build a kernel tensor
+### of size T x T x N x N and then sum over the last two dimensions
+### (or equivalently)
+
+class GaussianKernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
+    def __init__(self, lmbda=1.0, sigma=1.0, fit_sigma_using_median_heuristic=False):
+        self.lmbda = lmbda
+        self.sigma = sigma
+        self.fit_sigma_using_median_heuristic = fit_sigma_using_median_heuristic
+
+    def fit(self, X, y):
+        assert len(X.shape) == 3
+        if self.fit_sigma_using_median_heuristic:
+            self.sigma = median_heuristic(X, X)
+        self.X = X
+        self.y = y
+
+        K = gaussian_mean_embedding_kernel(X, X, sigma=self.sigma)
+        Kl = K + torch.eye(K.shape[0]) * self.lmbda
+        self.K = K
+        self.alpha = LA.solve(Kl, y)
+        return self
+
+    def predict(self, X):
+        assert len(X.shape) == 3
+        K = gaussian_mean_embedding_kernel(X, self.X, sigma=self.sigma)
+        return K @ self.alpha
+
+    def score(self, X, y):
+        y_pred = self.predict(X)
+        return mean_squared_error(y, y_pred)
+
+
+### Utility functions
+from ocpmodels.preprocessing import AtomsToGraphs
+from torch_geometric.data import Batch
+import ase.io
+# SchNet
+# atoms_to_graph_kwargs=dict(max_neigh=50,
+#                            radius=6,
+#                            r_energy=True,
+#                            r_forces=True,
+#                            r_distances=False,
+#                            r_edges=True,
+#                            r_fixed=True)
+def load_xyz_to_pyg_batch(path, atoms_to_graph_kwargs):
+    """
+    Load XYZ data from a given path using ASE and convert it into a PyTorch Geometric Batch object.
+
+    Args:
+        path (Path): Path to the XYZ data file.
+        **atoms_to_graph_kwargs: Optional keyword arguments for AtomsToGraphs class.
+
+    Returns:
+        Tuple consisting of raw_data, data_batch, num_frames, and num_atoms.
+        raw_data (Atoms): Raw data loaded from the file using ASE.
+        data_batch (Batch): Batch object containing converted data for all frames.
+        num_frames (int): Number of frames in the loaded XYZ data file.
+        num_atoms (int): Number of atoms in each frame.
+    """
+    raw_data = ase.io.read(path, index=":")
+    num_frames = len(raw_data)
+    a2g = AtomsToGraphs(
+        **atoms_to_graph_kwargs,
+    )
+    data_object = a2g.convert_all(raw_data, disable_tqdm=True)
+    data_batch = Batch.from_data_list(data_object)
+    num_atoms = data_batch[0].num_nodes
+    return raw_data, data_batch, num_frames, num_atoms
