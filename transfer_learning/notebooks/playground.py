@@ -5,18 +5,23 @@ from the model. We use this to output the distance and kernel matrices for the s
 and atoms.
 """
 from pathlib import Path
-import yaml
-from pprint import pprint
 
-from torch_geometric.data import Batch
-from torch_geometric.nn import SumAggregation
-import torch
-import torch.nn.functional as F
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+import numpy as np
+import torch
+from dscribe.descriptors import SOAP, ACSF
+from sklearn.dummy import DummyRegressor
+from sklearn.linear_model import RidgeCV
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.preprocessing import StandardScaler
 
-from ocpmodels.preprocessing import AtomsToGraphs
-from ocpmodels.extra import BaseLoader, load_xyz_to_pyg_batch
+from transfer_learning.transfer_learning.common.utils import load_xyz_to_pyg_batch, ATOMS_TO_GRAPH_KWARGS
+from transfer_learning.transfer_learning.models.distribution_regression import (GaussianKernel,
+                                                                                LinearMeanEmbeddingKernel,
+                                                                                KernelMeanEmbeddingRidgeRegression,
+                                                                                median_heuristic)
+from transfer_learning.transfer_learning.loaders import BaseLoader
 
 ### Load checkpoint
 CHECKPOINT_PATH = Path("checkpoints/s2ef_efwt/all/schnet/schnet_all_large.pt")
@@ -24,14 +29,7 @@ checkpoint = torch.load(CHECKPOINT_PATH, map_location="cpu")
 
 ### Load data
 DATA_PATH = Path("data/luigi/example-traj-Fe-N2-111.xyz")
-schnet_atoms_to_graph_kwargs=dict(max_neigh=50,
-                                  radius=6,
-                                  r_energy=True,
-                                  r_forces=True,
-                                  r_distances=False,
-                                  r_edges=True,
-                                  r_fixed=True)
-raw_data, data_batch, num_frames, num_atoms = load_xyz_to_pyg_batch(DATA_PATH, schnet_atoms_to_graph_kwargs)
+raw_data, data_batch, num_frames, num_atoms = load_xyz_to_pyg_batch(DATA_PATH, ATOMS_TO_GRAPH_KWARGS["schnet"])
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -123,11 +121,6 @@ ani.save(f"Ds_in_time.gif", writer=writer)
 # Perform ridge regression on the mean representation as a feature vector describing the system.
 # This is very crude and only serves as a sanity check that the representation is actually doing
 # something useful at all.
-from sklearn.linear_model import RidgeCV
-from sklearn.dummy import DummyRegressor
-from sklearn.metrics import  mean_squared_error
-from sklearn.model_selection import cross_val_score
-import numpy as np
 
 ridge_scores = []
 dummy_scores = []
@@ -175,36 +168,23 @@ ax.legend()
 plt.tight_layout()
 fig.savefig("regression.png")
 
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import train_test_split
-
-import numpy as np
-
-from ocpmodels.extra import GaussianKernelMeanEmbeddingRidgeRegression
-from dscribe.descriptors import SOAP, ACSF #baseline
-
-# Baseline
+# Benchmark the method against others
 y = data_batch.y.detach().cpu()
 y = y.reshape(-1, 1).float()
+# soap = SOAP(species=["Fe", "N"], rcut=6, n_max=3, l_max=3, periodic=True, sparse=False)
+# def create_soap_features(systems, soap_object):
+#     features = []
+#     for atoms in systems:
+#         features.append(soap_object.create(atoms))
+#     return torch.tensor(features)
+# soap_features = create_soap_features(soap_data, soap)
+# soap_features = soap_features.detach().cpu().float()
+# scaler = StandardScaler()
+# new_soap_features = scaler.fit_transform(soap_features.reshape(-1, soap_features.shape[-1]))
+# new_soap_features = new_soap_features.reshape(soap_features.shape)
+# _soap_features = soap_features
+# soap_features = torch.tensor(new_soap_features).float()
 
-import ase
-soap = SOAP(species=["Fe", "N"], rcut=6, n_max=3, l_max=3, periodic=True, sparse=False)
-def create_soap_features(systems, soap_object):
-    features = []
-    for atoms in systems:
-        features.append(soap_object.create(atoms))
-    return torch.tensor(features)
-soap_features = create_soap_features(soap_data, soap)
-soap_features = soap_features.detach().cpu().float()
-from sklearn.preprocessing import StandardScaler
-scaler = StandardScaler()
-new_soap_features = scaler.fit_transform(soap_features.reshape(-1, soap_features.shape[-1]))
-new_soap_features = new_soap_features.reshape(soap_features.shape)
-_soap_features = soap_features
-soap_features = torch.tensor(new_soap_features).float()
-
-
-import ase
 rcut = 6
 bins = np.linspace(0, rcut, 100)
 sigma = rcut / len(bins)
@@ -216,15 +196,18 @@ def create_acsf_features(systems, acsf_object):
     for atoms in systems:
         features.append(acsf_object.create(atoms))
     return torch.tensor(features)
+
 acsf_features = create_acsf_features(raw_data, acsf)
 acsf_features = acsf_features.detach().cpu().float()
 fig, ax = plt.subplots(1, 1, figsize=(4, 3))
 ax.plot(bins, acsf_features.mean(0)[:45].mean(0)[102:], label='ACSF', linestyle='--', marker=None)
 fig.savefig("acsf.png")
-soap_features = acsf_features
+dscribe_features = acsf_features
+
+gk = GaussianKernel()
 
 mse_dist_krr = []
-mse_soap_krr = []
+mse_dscribe_krr = []
 mse_dummy = []
 for representation_layer in range(1, 2):
     base_loader = BaseLoader(checkpoint["config"],
@@ -242,57 +225,47 @@ for representation_layer in range(1, 2):
     phi = phi.detach().cpu()
     phi = phi.reshape(num_frames, num_atoms, -1)
     mse_dist_krr_temp = []
-    mse_soap_krr_temp = []
+    mse_dscribe_krr_temp = []
     for _ in range(25):
         train_idx, test_idx = train_test_split(np.arange(num_frames), test_size=0.2)
-        soap_train, soap_test = soap_features[train_idx], soap_features[test_idx]
+        dscribe_train, dscribe_test = dscribe_features[train_idx], dscribe_features[test_idx]
         phi_train, phi_test = phi[train_idx], phi[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
         # SchNet
-        gkmerr = GaussianKernelMeanEmbeddingRidgeRegression(lmbda=1e-6, fit_sigma_using_median_heuristic=True)
+        sigma = median_heuristic(phi_train.reshape(-1, phi_train.shape[-1]),
+                                 phi_train.reshape(-1, phi_train.shape[-1]))
+        gk.sigma = sigma
+        gklme = LinearMeanEmbeddingKernel(gk)
+        gkmerr = KernelMeanEmbeddingRidgeRegression(gklme, lmbda=1e-6)
         y_mean = y_train.mean()
         gkmerr.fit(phi_train, y_train - y_mean)
         y_pred = gkmerr.predict(phi_test) + y_mean
         mse_dist_krr_temp.append(mean_squared_error(y_test, y_pred))
 
-        # SOAP
-        gkmerr = GaussianKernelMeanEmbeddingRidgeRegression(lmbda=1e-6, fit_sigma_using_median_heuristic=True)
+        # DSCRIBE
+        sigma = median_heuristic(dscribe_train.reshape(-1, dscribe_train.shape[-1]),
+                                 dscribe_train.reshape(-1, dscribe_train.shape[-1]))
         y_mean = y_train.mean()
-        gkmerr.fit(soap_train, y_train - y_mean)
-        y_pred = gkmerr.predict(soap_test) + y_mean
-        mse_soap_krr_temp.append(mean_squared_error(y_test, y_pred))
+        gkmerr.fit(dscribe_train, y_train - y_mean)
+        y_pred = gkmerr.predict(dscribe_test) + y_mean
+        mse_dscribe_krr_temp.append(mean_squared_error(y_test, y_pred))
 
         # Dummy
         mse_dummy.append(mean_squared_error(y_test, torch.ones_like(y_test) * y_mean))
     mse_dist_krr.append(mse_dist_krr_temp)
-    mse_soap_krr.append(mse_soap_krr_temp)
+    mse_dscribe_krr.append(mse_dscribe_krr_temp)
 
 mse_dist_krr = torch.tensor(mse_dist_krr)
-mse_soap_krr = torch.tensor(mse_soap_krr)
+mse_dscribe_krr = torch.tensor(mse_dscribe_krr)
 
-print(f"mean and std (SOAP): {torch.mean(mse_soap_krr):.3f}, {torch.std(mse_soap_krr):.3f}")
-print(f"mean and std (SchNet): {torch.mean(mse_dist_krr)}, {torch.std(mse_dist_krr)}")
-
-# Finally with original model
-representation_layer = None
-base_loader = BaseLoader(checkpoint["config"],
-                         representation=False,
-                         representation_kwargs={
-                             "representation_layer": representation_layer
-                         })
-base_loader.load_checkpoint(CHECKPOINT_PATH, strict_load=False)
-model = base_loader.model
-model.to(device)
-model.eval()
-
-y_pred = model(data_batch)[0].detach().cpu()
-mean_squared_error(y, y_pred)
+print(f"mean and std (DSCRIBE): {torch.mean(mse_dscribe_krr):.3f}, {torch.std(mse_dscribe_krr):.3f}")
+print(f"mean and std (SchNet): {torch.mean(mse_dist_krr):.3f}, {torch.std(mse_dist_krr):.3f}")
 
 fig, ax = plt.subplots(1, 1, figsize=(3, 3))
 mse_dummy = np.array(mse_dummy)
-boxplot_array = np.vstack([mse_dist_krr, mse_soap_krr]).T
+boxplot_array = np.vstack([mse_dist_krr, mse_dscribe_krr]).T
 ax.boxplot(boxplot_array,
-           labels=[f"SchNet (layer1)", "SOAP"],
+           labels=["SchNet (layer1)", "DSCRIBE"],
            showbox=True, showcaps=False)
 ax.set_ylabel("MSE")
 ax.set_title("GKMERR")
@@ -301,4 +274,4 @@ ax.set_yscale("log")
 plt.tight_layout()
 fig.savefig("gkmerr_regression.png")
 
-print(np.mean(mse_dummy), torch.mean(mse_dist_krr).item(), torch.mean(mse_soap_krr).item())
+print(np.mean(mse_dummy), torch.mean(mse_dist_krr).item(), torch.mean(mse_dscribe_krr).item())
