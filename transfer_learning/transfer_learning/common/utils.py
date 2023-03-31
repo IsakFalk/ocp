@@ -19,6 +19,7 @@ ATOMS_TO_GRAPH_KWARGS = {
     )
 }
 
+
 def load_xyz_to_pyg_batch(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atoms, Batch, int, int]:
     """
     Load XYZ data from a given path using ASE and convert it into a PyTorch Geometric Batch object.
