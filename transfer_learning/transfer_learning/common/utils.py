@@ -1,8 +1,10 @@
-#!/usr/bin/env python3
-from ocpmodels.preprocessing import AtomsToGraphs
-from torch_geometric.data import Batch
+from pathlib import Path
+
 import ase.io
-from typing import Tuple
+from ase import Atoms
+from torch_geometric.data import Batch
+
+from ocpmodels.preprocessing import AtomsToGraphs
 
 # Keyword arguments for converting ASE Atoms objects to PyTorch Geometric Batch objects per model
 ATOMS_TO_GRAPH_KWARGS = {
@@ -17,7 +19,7 @@ ATOMS_TO_GRAPH_KWARGS = {
     )
 }
 
-def load_xyz_to_pyg_batch(path: Path, atoms_to_graph_kwargs: dict) -> Tuple[Atoms, Batch, int, int]:
+def load_xyz_to_pyg_batch(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atoms, Batch, int, int]:
     """
     Load XYZ data from a given path using ASE and convert it into a PyTorch Geometric Batch object.
 
