@@ -1,5 +1,17 @@
 import copy
+import errno
+import logging
+import os
+import random
+
+import numpy as np
 import torch
+import yaml
+from torch.nn.parallel.distributed import DistributedDataParallel
+
+from ocpmodels.common import distutils
+from ocpmodels.common.data_parallel import OCPDataParallel
+from ocpmodels.common.registry import registry
 
 class BaseLoader:
     """Base class for model loaders.
@@ -18,8 +30,8 @@ class BaseLoader:
     def __init__(
         self,
         model,
-        representation: bool =False,
-        representation_kwargs={},
+        representation: bool = False,
+        representation_kwargs: dict = {},
         seed=None,
         cpu=False,
         name="base_model_loader",
@@ -27,14 +39,16 @@ class BaseLoader:
         self.name = name
         self.representation = representation
         self.representation_kwargs = representation_kwargs
-        self.cpu = cpu # TODO: Have not been tested with cuda but should work
-        self.num_targets = 1 # NOTE: This is due to OCP code and should be fixed to 1
+        self.cpu = cpu  # TODO: Have not been tested with cuda but should work
+        self.num_targets = (
+            1  # NOTE: This is due to OCP code and should be fixed to 1
+        )
 
         # Don't mutate the original model dict
         model = copy.deepcopy(model)
 
         if torch.cuda.is_available() and not self.cpu:
-            self.device = torch.device(f"cuda:0")
+            self.device = torch.device("cuda:0")
         else:
             self.device = torch.device("cpu")
             self.cpu = True
@@ -46,7 +60,7 @@ class BaseLoader:
         self.config = {
             "model": model.pop("model"),
             "model_attributes": model["model_attributes"],
-            "seed": seed
+            "seed": seed,
         }
 
         # Print the current config to stdout
@@ -79,13 +93,14 @@ class BaseLoader:
         # class object
         # This makes the registry available
         from ocpmodels.common.utils import setup_imports
+
         setup_imports()
 
         # Build model
         if distutils.is_master():
             logging.info(f"Loading model: {self.config['model']}")
             if self.representation:
-                logging.info(f"Model used for representation")
+                logging.info("Model used for representation")
 
         # TODO: Says it's deprecated in the OCP code but it's required for now
         bond_feat_dim = None
@@ -148,21 +163,27 @@ class BaseLoader:
         # related to the keys. This is due to the method ocpmodels.common.utils._report_incompat_keys
         # load_state_dict(self.model, new_dict, strict=strict_load)
         # Instead we mimic the checks they would do here taking care of errors
-        incompat_keys = self.model.load_state_dict(new_dict, strict=strict_load)
+        incompat_keys = self.model.load_state_dict(
+            new_dict, strict=strict_load
+        )
 
         error_msgs = []
         if len(incompat_keys.unexpected_keys) > 0:
             error_msgs.insert(
                 0,
                 "Unexpected key(s) in state_dict: {}. ".format(
-                    ", ".join('"{}"'.format(k) for k in incompat_keys.unexpected_keys)
+                    ", ".join(
+                        '"{}"'.format(k) for k in incompat_keys.unexpected_keys
+                    )
                 ),
             )
         if len(incompat_keys.missing_keys) > 0:
             error_msgs.insert(
                 0,
                 "Missing key(s) in state_dict: {}. ".format(
-                    ", ".join('"{}"'.format(k) for k in incompat_keys.missing_keys)
+                    ", ".join(
+                        '"{}"'.format(k) for k in incompat_keys.missing_keys
+                    )
                 ),
             )
 
