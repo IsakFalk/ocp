@@ -42,3 +42,4 @@ def load_xyz_to_pyg_batch(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atom
     data_batch = Batch.from_data_list(data_object)
     num_atoms = data_batch[0].num_nodes
     return raw_data, data_batch, num_frames, num_atoms
+
