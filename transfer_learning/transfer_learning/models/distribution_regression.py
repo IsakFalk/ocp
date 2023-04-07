@@ -94,12 +94,12 @@ class KernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
         k = self.kernel(X, self.X_)
         return k @ self.alpha_
 
-    def predict_gradient_and_output(self, X: Tensor, pos: Tensor) -> Tensor:
+    def predict_y_and_grad(self, X: Tensor, pos: Tensor) -> Tensor:
         assert len(X.shape) == 3
         T, num_atoms, d = X.shape
         k = self.kernel(X, self.X_)
         y_pred = k @ self.alpha_
-        grad_pred = -1 * (
+        grad_pred = (
             torch.autograd.grad(
                 y_pred,
                 pos,
@@ -177,7 +177,7 @@ class StandardizedOutputRegression(BaseEstimator, RegressorMixin):
         return self.scaler.inverse_transform(self.regressor.predict(X))
 
     def predict_y_and_grad(self, X: Tensor, pos: Tensor) -> Tensor:
-        y_pred, grad_pred = self.regressor.predict_gradient_and_output(X, pos)
+        y_pred, grad_pred = self.regressor.predict_y_and_grad(X, pos)
         y_pred = self.scaler.inverse_transform(y_pred)
         grad_pred = self.scaler.std_.item() * grad_pred
         return y_pred, grad_pred
