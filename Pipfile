@@ -25,7 +25,6 @@ submitit = "*"
 # torch-cluster = {index= "pytorch-geometric", version= "*"}
 # torch-spline-conv = {index= "pytorch-geometric", version= "*"}
 # torch-geometric = {index= "pytorch-geometric", version= "*"}
-jupyter = "*"
 torch = {version = "==1.13.1+cu117", index = "downloadpytorch"}
 
 [dev-packages]
@@ -38,6 +37,7 @@ pylint = "*"
 pyflakes = "*"
 isort = "*"
 wandb = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.9"
