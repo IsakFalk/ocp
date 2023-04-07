@@ -1,10 +1,11 @@
+from abc import ABC, abstractmethod
+
 import torch
 import torch.linalg as LA
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.metrics import mean_squared_error
 from torch import Tensor
 
-from abc import ABC, abstractmethod
 
 # Kernels
 class Kernel(ABC):
@@ -36,7 +37,6 @@ class GaussianKernel(Kernel):
 
     def __call__(self, x: Tensor, y: Tensor) -> Tensor:
         return torch.exp(-torch.cdist(x, y, p=2) ** 2 / (2 * self.sigma ** 2))
-
 
 class LinearMeanEmbeddingKernel(MeanEmbeddingKernel):
     def __init__(self, kernel: Kernel):
@@ -80,24 +80,104 @@ class KernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
     def fit(self, X: Tensor, y: Tensor):
         assert len(X.shape) == 3
         assert len(y.shape) == 2
-        self._X = X
-        self._y = y
+        self.X_ = X
+        self.y_ = y
 
         k = self.kernel(X, X)
         klmbda = k + torch.eye(k.shape[0]) * self.lmbda
-        self._k = k
-        self._alpha = LA.solve(klmbda, y)
+        self.k_ = k
+        self.alpha_ = LA.solve(klmbda, y)
         return self
 
     def predict(self, X: Tensor) -> Tensor:
         assert len(X.shape) == 3
-        k = self.kernel(X, self._X)
-        return k @ self._alpha
+        k = self.kernel(X, self.X_)
+        return k @ self.alpha_
+
+    def predict_gradient_and_output(self, X: Tensor, pos: Tensor) -> Tensor:
+        assert len(X.shape) == 3
+        T, num_atoms, d = X.shape
+        k = self.kernel(X, self.X_)
+        y_pred = k @ self.alpha_
+        grad_pred = -1 * (
+            torch.autograd.grad(
+                y_pred,
+                pos,
+                grad_outputs=torch.ones_like(y_pred),
+                create_graph=False,
+                allow_unused=False,
+            )[0]
+        ).reshape(T, num_atoms, -1)
+        return y_pred, grad_pred
 
     def score(self, X: Tensor, y: Tensor) -> float:
         y_pred = self.predict(X)
         return float(mean_squared_error(y, y_pred))
 
-
 def median_heuristic(x: Tensor, y: Tensor) -> float:
     return float(torch.median(torch.cdist(x, y, p=2)))
+
+
+# Sklearn utilities
+class TorchStandardScaler:
+    """Standardization for torch"""
+    def __init__(self, eps=1e-7):
+        self.eps = eps
+
+    def fit(self, x):
+        self.mean_ = x.mean(0, keepdim=True)
+        self.std_ = x.std(0, unbiased=False, keepdim=True)
+
+    def transform(self, x):
+        x -= self.mean_
+        x /= (self.std_ + self.eps)
+        return x
+
+    def inverse_transform(self, x):
+        x *= (self.std_ + self.eps)
+        x += self.mean_
+        return x
+
+class StandardizedOutputRegression(BaseEstimator, RegressorMixin):
+    """Wrapper class which standardizes the output of a univariate regression model (torch)
+
+    Parameters:
+        ------------
+        regressor: object
+            The regression model to be wrapped.
+
+        eps: float, default=1e-7
+            A small number to be added to the standard deviation when dividing to avoid division
+            by zero.
+
+    Methods:
+        ---------
+        fit(self, X, y):
+            Fit the standardized regression model to the training data.
+
+        predict(self, X):
+            Predict using the standardized regression model.
+
+        Returns: y_pred
+        --------
+    """
+
+    def __init__(self, regressor, eps=1e-7):
+        self.regressor = regressor
+        self.scaler = TorchStandardScaler(eps)
+
+    def fit(self, X, y):
+        assert len(y.shape) == 2 and y.shape[1] == 1, "y should have shape 2 and be univariate"
+        self.scaler.fit(y)
+        y = self.scaler.transform(y)
+        self.regressor.fit(X, y)
+        return self
+
+    def predict(self, X):
+        return self.scaler.inverse_transform(self.regressor.predict(X))
+
+    def predict_y_and_grad(self, X: Tensor, pos: Tensor) -> Tensor:
+        y_pred, grad_pred = self.regressor.predict_gradient_and_output(X, pos)
+        y_pred = self.scaler.inverse_transform(y_pred)
+        grad_pred = self.scaler.std_.item() * grad_pred
+        return y_pred, grad_pred
