@@ -13,6 +13,7 @@ from ocpmodels.common import distutils
 from ocpmodels.common.data_parallel import OCPDataParallel
 from ocpmodels.common.registry import registry
 
+
 class BaseLoader:
     """Base class for model loaders.
 
@@ -32,6 +33,8 @@ class BaseLoader:
         model,
         representation: bool = False,
         representation_kwargs: dict = {},
+        regress_forces: bool = True,
+        use_pbc: bool = True,
         seed=None,
         cpu=False,
         name="base_model_loader",
@@ -39,6 +42,8 @@ class BaseLoader:
         self.name = name
         self.representation = representation
         self.representation_kwargs = representation_kwargs
+        self.regress_forces = regress_forces
+        self.use_pbc = use_pbc
         self.cpu = cpu  # TODO: Have not been tested with cuda but should work
         self.num_targets = (
             1  # NOTE: This is due to OCP code and should be fixed to 1
@@ -62,6 +67,7 @@ class BaseLoader:
             "model_attributes": model["model_attributes"],
             "seed": seed,
         }
+        self.config["model_attributes"]["use_pbc"] = self.use_pbc
 
         # Print the current config to stdout
         print(yaml.dump(self.config, default_flow_style=False))
@@ -110,10 +116,11 @@ class BaseLoader:
 
         # Load the model class from the registry
         self.model = registry.get_model_class(self.config["model"])(
-            None,
-            bond_feat_dim,
-            self.num_targets,
-            self.representation,
+            num_atoms=None,
+            bond_feat_dim=bond_feat_dim,
+            num_targets=self.num_targets,
+            representation=self.representation,
+            regress_forces=self.regress_forces,
             **self.representation_kwargs,
             **self.config["model_attributes"],
         ).to(self.device)
