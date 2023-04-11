@@ -43,3 +43,26 @@ def load_xyz_to_pyg_batch(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atom
     num_atoms = data_batch[0].num_nodes
     return raw_data, data_batch, num_frames, num_atoms
 
+def load_xyz_to_pyg_data(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atoms, Batch, int, int]:
+    """
+    Load XYZ data from a given path using ASE and convert it into a list of PyTorch Geometric data objects.
+
+    Args:
+        path (Path): Path to the XYZ data file.
+        **atoms_to_graph_kwargs: Optional keyword arguments for AtomsToGraphs class.
+
+    Returns:
+        Tuple consisting of raw_data, data_batch, num_frames, and num_atoms.
+        raw_data (Atoms): Raw data loaded from the file using ASE.
+        list_of_data (list): list containing converted data for all frames.
+        num_frames (int): Number of frames in the loaded XYZ data file.
+        num_atoms (int): Number of atoms in each frame.
+    """
+    raw_data = ase.io.read(path, index=":")
+    num_frames = len(raw_data)
+    a2g = AtomsToGraphs(
+        **atoms_to_graph_kwargs,
+    )
+    data_object = a2g.convert_all(raw_data, disable_tqdm=True)
+    num_atoms = data_object[0].num_nodes
+    return raw_data, data_object, num_frames, num_atoms
