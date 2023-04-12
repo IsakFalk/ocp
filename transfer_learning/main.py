@@ -8,7 +8,7 @@ LICENSE file in the root directory of this source tree.
 from ocpmodels.transfer_learning.common.flags import flags
 from ocpmodels.transfer_learning.common.utils import get_config
 from ocpmodels.transfer_learning.loaders import BaseLoader # noqa: F401
-from ocpmodels.transfer_learning.runners import GNNRunner
+from ocpmodels.transfer_learning.runners import GNNRunner, MEKRRRunner
 from ocpmodels.common.utils import (
     setup_logging,
 )
@@ -22,6 +22,8 @@ if __name__ == "__main__":
 
     if config["runner"] == "GNN":
         runner = GNNRunner(config, args)
+    elif config["runner"] == "MEKRR":
+        runner = MEKRRRunner(config, args)
 
     runner.setup()
     runner.run()
