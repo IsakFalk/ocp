@@ -1,31 +1,5 @@
-"""GNN implementation for learning
-
-We basically take the parts from the OCP repo and fix it to use here"""
-
-import copy
-
-import numpy as np
-import torch
-from torch_geometric.loader import DataLoader
-import torch_geometric
-
-from ocpmodels.transfer_learning.common.utils import load_xyz_to_pyg_data, ATOMS_TO_GRAPH_KWARGS, aggregate_metric
-
-#######################
-# Functions and stuff #
-#######################
-from ocpmodels.transfer_learning.loaders import BaseLoader
-
-## Trainer
-torch.set_default_dtype(torch.float32)
-"""
-Copyright (c) Facebook, Inc. and its affiliates.
-
-This source code is licensed under the MIT license found in the
-LICENSE file in the root directory of this source tree.
-"""
-
 from pathlib import Path
+import copy
 
 import logging
 import random
@@ -34,18 +8,25 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import yaml
-#from torch.utils.data import DataLoader
 from tqdm import tqdm
+import torch_geometric
+from torch_geometric.data import DataLoader
 
 from ocpmodels.common.utils import save_checkpoint
 from ocpmodels.modules.normalizer import Normalizer
 from ocpmodels.modules.scheduler import LRScheduler
 from ocpmodels.transfer_learning.common.logger import WandBLogger
+from ocpmodels.transfer_learning.common.utils import (
+    ATOMS_TO_GRAPH_KWARGS,
+    load_xyz_to_pyg_data,
+    aggregate_metric,
+)
+from .loaders import BaseLoader
 
 from pprint import pprint
 
-class Trainer:
+
+class GNNTrainer:
     def __init__(
         self,
         model_config,
@@ -57,7 +38,7 @@ class Trainer:
         cpu=False,
         name="trainer",
         run_dir="checkpoints",
-        is_debug=False
+        is_debug=False,
     ):
         self.model_config = copy.deepcopy(model_config)  # Config for model
         self.dataset_config = copy.deepcopy(dataset_config)  # Config for dataset
@@ -108,7 +89,7 @@ class Trainer:
                     device=self.device,
                 )
             else:
-                y = torch.tensor([data.y.clone().detach() for data in trainer.train_dataset])
+                y = torch.tensor([data.y.clone().detach() for data in self.train_dataset])
                 self.normalizers["target"] = Normalizer(
                     mean=y.mean().float(),
                     std=y.std().float(),
@@ -121,7 +102,7 @@ class Trainer:
                     device=self.device,
                 )
             else:
-                forces = torch.cat([data.force.clone().detach() for data in trainer.train_dataset], dim=0)
+                forces = torch.cat([data.force.clone().detach() for data in self.train_dataset], dim=0)
                 self.normalizers["grad_target"] = Normalizer(
                     mean=0.0,
                     std=forces.std().float(),
@@ -192,10 +173,7 @@ class Trainer:
     def load_model(self):
         _config = copy.deepcopy(self.config)
         self.model = BaseLoader(
-            _config,
-            regress_forces=_config["model_attributes"].pop("regress_forces"),
-            seed=self.seed,
-            cpu=self.cpu
+            _config, regress_forces=_config["model_attributes"].pop("regress_forces"), seed=self.seed, cpu=self.cpu
         ).model.to(self.device)
         if self.logger is not None:
             self.logger.watch(self.model)
@@ -251,7 +229,7 @@ class Trainer:
             )
 
     def load_extras(self):
-        self.scheduler = LRScheduler(self.optimizer, self.config["optim"]) # for now no decay
+        self.scheduler = LRScheduler(self.optimizer, self.config["optim"])  # for now no decay
         pass
 
     def update_best(
@@ -276,14 +254,10 @@ class Trainer:
                 )
 
     def train(self, disable_eval_tqdm=False):
-        #ensure_fitted(self._unwrapped_model, warn=True)
+        # ensure_fitted(self._unwrapped_model, warn=True)
 
-        eval_every = self.config["optim"].get(
-            "eval_every", len(self.train_loader)
-        )
-        checkpoint_every = self.config["optim"].get(
-            "checkpoint_every", eval_every
-        )
+        eval_every = self.config["optim"].get("eval_every", len(self.train_loader))
+        checkpoint_every = self.config["optim"].get("checkpoint_every", eval_every)
         # primary_metric = self.config["task"].get(
         #     "primary_metric", self.evaluator.task_primary_metric[self.name]
         # )
@@ -291,10 +265,7 @@ class Trainer:
         primary_metric = "loss"
         self.best_val_metric = np.inf
 
-        self.metrics = {
-            "energy_loss": [],
-            "forces_loss": []
-        }
+        self.metrics = {"energy_loss": [], "forces_loss": []}
         self.step = 0
         for epoch in range(self.config["optim"]["max_epochs"]):
             self.epoch = epoch
@@ -307,9 +278,7 @@ class Trainer:
                 self._backward(loss)
 
                 # Compute metrics.
-                self.metrics = self._compute_metrics(
-                    out, losses, self.metrics
-                )
+                self.metrics = self._compute_metrics(out, losses, self.metrics)
 
                 # Log metrics.
                 log_dict = {k: aggregate_metric(self.metrics[k]) for k in self.metrics}
@@ -320,17 +289,10 @@ class Trainer:
                         "step": self.step,
                     }
                 )
-                if (
-                    self.step % self.print_every == 0
-                ):
-                    log_str = [
-                        "{}: {:.2e}".format(k, v) for k, v in log_dict.items()
-                    ]
+                if self.step % self.print_every == 0:
+                    log_str = ["{}: {:.2e}".format(k, v) for k, v in log_dict.items()]
                     logging.info(", ".join(log_str))
-                    self.metrics = {
-                        "energy_loss": [],
-                        "forces_loss": []
-                    }
+                    self.metrics = {"energy_loss": [], "forces_loss": []}
 
                 if self.logger is not None:
                     self.logger.log(
@@ -339,13 +301,8 @@ class Trainer:
                         split="train",
                     )
 
-                if (
-                    checkpoint_every != -1
-                    and self.step % checkpoint_every == 0
-                ):
-                    self.save(
-                        checkpoint_file="checkpoint.pt", training_state=True
-                    )
+                if checkpoint_every != -1 and self.step % checkpoint_every == 0:
+                    self.save(checkpoint_file="checkpoint.pt", training_state=True)
 
                 # Evaluate on val set every `eval_every` iterations.
                 if self.step % eval_every == 0:
@@ -385,10 +342,7 @@ class Trainer:
         self.model.eval()
         loader = self.val_loader if split == "val" else self.test_loader
 
-        metrics = {
-            "energy_loss": [],
-            "forces_loss": []
-        }
+        metrics = {"energy_loss": [], "forces_loss": []}
         for i, batch in tqdm(
             enumerate(loader),
             total=len(loader),
@@ -459,18 +413,12 @@ class Trainer:
         # Energy loss.
         energy_target = torch.cat([batch.y.to(self.device) for batch in batch_list], dim=0).float()
         energy_target = self.normalizers["target"].norm(energy_target)
-        losses["energy"] = (
-            self.loss_fn["energy"](out["energy"], energy_target)
-        )
+        losses["energy"] = self.loss_fn["energy"](out["energy"], energy_target)
         # Force loss.
         if self.config["model_attributes"].get("regress_forces", True):
-            force_target = torch.cat(
-                [batch.force.to(self.device) for batch in batch_list], dim=0
-            ).float()
+            force_target = torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0).float()
             force_target = self.normalizers["grad_target"].norm(force_target)
-            losses["forces"] = (
-                self.loss_fn["forces"](out["forces"], force_target)
-            )
+            losses["forces"] = self.loss_fn["forces"](out["forces"], force_target)
 
         # Sanity check to make sure the compute graph is correct.
         for lc in losses.values():
@@ -496,14 +444,10 @@ class Trainer:
         log_results=True,
         disable_tqdm=False,
     ):
-        logging.info("Predicting on test.")
+        logging.info("Predicting.")
         assert isinstance(
             data_loader,
-            (
-                torch.utils.data.dataloader.DataLoader,
-                torch_geometric.data.Batch,
-                torch_geometric.data.DataLoader
-            ),
+            (torch.utils.data.dataloader.DataLoader, torch_geometric.data.Batch, torch_geometric.data.DataLoader),
         )
 
         if isinstance(data_loader, torch_geometric.data.Batch):
@@ -518,12 +462,8 @@ class Trainer:
         ):
             out = self._forward(batch)
             # denorm
-            out["energy"] = self.normalizers["target"].denorm(
-                out["energy"]
-            )
-            out["forces"] = self.normalizers["grad_target"].denorm(
-                out["forces"]
-            )
+            out["energy"] = self.normalizers["target"].denorm(out["energy"])
+            out["forces"] = self.normalizers["grad_target"].denorm(out["forces"])
             predictions["energy"].extend(out["energy"].detach())
             predictions["forces"].extend(out["forces"].detach())
 
@@ -533,54 +473,52 @@ class Trainer:
         return predictions
 
     def save(
-            self,
-            metrics=None,
-            checkpoint_file="checkpoint.pt",
-            training_state=True,
+        self,
+        metrics=None,
+        checkpoint_file="checkpoint.pt",
+        training_state=True,
     ):
         if training_state:
-            config = {
-                "epoch": self.epoch,
-                "step": self.step,
-                "state_dict": self.model.state_dict(),
-                "optimizer": self.optimizer.state_dict(),
-                "scheduler": self.scheduler.scheduler.state_dict()
+            config = (
+                {
+                    "epoch": self.epoch,
+                    "step": self.step,
+                    "state_dict": self.model.state_dict(),
+                    "optimizer": self.optimizer.state_dict(),
+                    "scheduler": self.scheduler.scheduler.state_dict()
                     if self.scheduler.scheduler_type != "Null"
                     else None,
-                "normalizers": {
-                    key: value.state_dict()
-                        for key, value in self.normalizers.items()
-                },
-                "config": self.config,
-                "val_metrics": metrics,
-                # "ema": self.ema.state_dict() if self.ema else None,
-                # "amp": self.scaler.state_dict()
-                # if self.scaler
-                # else None,
+                    "normalizers": {key: value.state_dict() for key, value in self.normalizers.items()},
+                    "config": self.config,
+                    "val_metrics": metrics,
+                    # "ema": self.ema.state_dict() if self.ema else None,
+                    # "amp": self.scaler.state_dict()
+                    # if self.scaler
+                    # else None,
                     "best_val_metric": self.best_val_metric,
-                # "primary_metric": self.config["task"].get(
-                #     "primary_metric",
-                #     self.evaluator.task_primary_metric[self.name],
-                #),
-            },
+                    # "primary_metric": self.config["task"].get(
+                    #     "primary_metric",
+                    #     self.evaluator.task_primary_metric[self.name],
+                    # ),
+                },
+            )
             save_checkpoint(
                 config,
-                #checkpoint_dir=self.config["cmd"]["checkpoint_dir"],
+                # checkpoint_dir=self.config["cmd"]["checkpoint_dir"],
                 checkpoint_file=checkpoint_file,
             )
         else:
-            config = {
-                "state_dict": self.model.state_dict(),
-                "normalizers": {
-                    key: value.state_dict()
-                        for key, value in self.normalizers.items()
+            config = (
+                {
+                    "state_dict": self.model.state_dict(),
+                    "normalizers": {key: value.state_dict() for key, value in self.normalizers.items()},
+                    "config": self.config,
+                    "val_metrics": metrics,
+                    # "amp": self.scaler.state_dict()
+                    # if self.scaler
+                    # else None,
                 },
-                "config": self.config,
-                "val_metrics": metrics,
-                #"amp": self.scaler.state_dict()
-                # if self.scaler
-                # else None,
-            },
+            )
             ckpt_path = save_checkpoint(
                 config,
                 # checkpoint_dir=self.checkpoint_dir,
@@ -588,30 +526,3 @@ class Trainer:
             )
             return ckpt_path
         return None
-
-############
-# Notebook #
-############
-
-# Load config for run
-with open("./transfer_learning/configs/gnn/schnet.yaml", "r") as f:
-    original_config = yaml.safe_load(f)
-config = copy.deepcopy(original_config)
-
-# from pprint import pprint
-# pprint(model_config)
-# pprint(config["dataset"])
-# pprint(config["optim"])
-
-# Set up trainer
-trainer = Trainer(
-    config["model"],
-    config["dataset"],
-    config["optim"],
-    config["logger"],
-    cpu=True,
-    name="schnet",
-)
-
-### Now train
-trainer.train()

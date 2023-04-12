@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 from pathlib import Path
 
@@ -28,11 +26,11 @@ class Flags:
         #     type=str,
         #     help="Experiment identifier to append to checkpoint/log/result directory",
         # )
-        # self.parser.add_argument(
-        #     "--debug",
-        #     action="store_true",
-        #     help="Whether this is a debugging run or not",
-        # )
+        self.parser.add_argument(
+            "--debug",
+            action="store_true",
+            help="Whether this is a debugging run or not",
+        )
         self.parser.add_argument(
             "--run-dir",
             default="./",
@@ -60,5 +58,6 @@ class Flags:
         self.parser.add_argument(
             "--cpu", action="store_true", help="Run CPU only training"
         )
+
 
 flags = Flags()

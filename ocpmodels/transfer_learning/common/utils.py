@@ -1,10 +1,14 @@
+import copy
 from pathlib import Path
 
 import ase.io
+import yaml
 from ase import Atoms
 from torch_geometric.data import Batch
+import torch
 
 from ocpmodels.preprocessing import AtomsToGraphs
+
 
 # Keyword arguments for converting ASE Atoms objects to PyTorch Geometric Batch objects per model
 ATOMS_TO_GRAPH_KWARGS = {
@@ -16,6 +20,28 @@ ATOMS_TO_GRAPH_KWARGS = {
                "r_edges": True,
                "r_fixed": True}
 }
+
+
+def torch_detach_maybe(x):
+    """TODO: Maybe not correct. But should be okay."""
+    if isinstance(x, list):
+        return [torch_detach_maybe(y) for y in x]
+    if isinstance(x, torch.Tensor):
+        return x.clone().detach()
+    else:
+        return torch.tensor(x)
+
+
+def aggregate_metric(metric):
+    metric = torch.tensor(torch_detach_maybe(metric))
+    return metric.mean().item()
+
+
+def get_config(path):
+    with open(path, "r") as f:
+        original_config = yaml.safe_load(f)
+        config = copy.deepcopy(original_config)
+    return config
 
 
 def load_xyz_to_pyg_batch(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atoms, Batch, int, int]:
@@ -43,6 +69,7 @@ def load_xyz_to_pyg_batch(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atom
     num_atoms = data_batch[0].num_nodes
     return raw_data, data_batch, num_frames, num_atoms
 
+
 def load_xyz_to_pyg_data(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atoms, Batch, int, int]:
     """
     Load XYZ data from a given path using ASE and convert it into a list of PyTorch Geometric data objects.
@@ -66,3 +93,16 @@ def load_xyz_to_pyg_data(path: Path, atoms_to_graph_kwargs: dict) -> tuple[Atoms
     data_object = a2g.convert_all(raw_data, disable_tqdm=True)
     num_atoms = data_object[0].num_nodes
     return raw_data, data_object, num_frames, num_atoms
+
+
+def torch_tensor_to_npy(tensor):
+    """
+    Converts a PyTorch tensor to a numpy array.
+
+    Args:
+        tensor (torch.Tensor): PyTorch tensor to be converted.
+
+    Returns:
+        Numpy array.
+    """
+    return tensor.detach().cpu().numpy()

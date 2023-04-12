@@ -98,9 +98,11 @@ class BaseLoader:
         # using strings through a key-value store mapping strings to the correct
         # class object
         # This makes the registry available
+        # Doesn't work for now
         from ocpmodels.common.utils import setup_imports
 
         setup_imports()
+
 
         # Build model
         if distutils.is_master():
