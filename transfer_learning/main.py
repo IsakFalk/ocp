@@ -18,7 +18,6 @@ if __name__ == "__main__":
 
     parser = flags.get_parser()
     args, override_args = parser.parse_known_args()
-    print(args, override_args)
     config = get_config(args.config_yml)
 
     if config["runner"] == "GNN":
