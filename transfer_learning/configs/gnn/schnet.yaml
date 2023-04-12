@@ -22,7 +22,7 @@ dataset:
 # Values for logger, such as tagging and name of run
 logger:
   tags: []
-  name: "schnet-very-good"
+  name: "schnet-very-test"
 
 model:
   name: "schnet"
@@ -49,7 +49,7 @@ optim:
   num_workers: 4
   # After how many updates to run evaluation on val during training.
   # If unspecified, defaults to 1 epoch.
-  eval_every: 5
+  #eval_every:
   # TODO: Add this as possibility to use
   # Loss function to use for energies. Defaults to 'mae'.
   ###loss_energy: mae                                                              # 'mae' or 'mse'
@@ -98,14 +98,16 @@ optim:
   #factor: 0.8
   #patience: 3
   # No. of epochs to train for.
-  max_epochs: 20
+  max_epochs: 2
 
-hide_eval_progressbar: False
+hide_eval_progressbar: True
 
 task:
   train: True
   validate: True
   test: True
   predict: ["train", "val", "test"]
+
+run_dir: "checkpoints"
 
 runner: "GNN"
