@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+import numpy as np
+
 from ocpmodels.transfer_learning.common.utils import torch_tensor_to_npy
 from ocpmodels.transfer_learning.trainers import GNNTrainer, MEKRRTrainer
 
@@ -44,15 +46,25 @@ class MEKRRRunner(BaseRunner):
             self.trainer.validate(
                 split="test",
             )
-        if hasattr(self.config["task"], "predict"):
-            log_dict = dict()
+        if "predict" in self.config["task"]:
+            array_dict = {}
             for split in self.config["task"]["predict"]:
-                log_dict[f"{split}"] = self.trainer.predict(
-                    split=split,
-                )
-                log_dict[f"{split}"] = {k: torch_tensor_to_npy(v) for k, v in log_dict[f"{split}"].items()}
-            self.trainer.logger.log_predictions(log_dict)
+                if split == "train":
+                    dataset = self.trainer.train_dataset
+                elif split == "val":
+                    dataset = self.trainer.val_dataset
+                elif split == "test":
+                    dataset = self.trainer.test_dataset
+                num_atoms = self.trainer.config["dataset"][f"{split}"]["num_atoms"]
+                out = self.trainer.predict(dataset, num_atoms)
+                out = {k: torch_tensor_to_npy(v) for k, v in out.items()}
+                for key, val in out.items():
+                    array_dict[f"{split}_{key}"] = val
 
+            with open(self.trainer.predictions_dir / "predictions.npz", "wb") as f:
+                np.savez(f, **array_dict)
+
+            self.trainer.logger.log_predictions(self.trainer.predictions_dir)
 
 
 class GNNRunner(BaseRunner):

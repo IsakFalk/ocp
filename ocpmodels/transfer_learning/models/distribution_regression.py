@@ -97,6 +97,7 @@ class KernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
     def predict_y_and_grad(self, X: Tensor, pos: Tensor) -> Tensor:
         assert len(X.shape) == 3
         T, num_atoms, d = X.shape
+        self.X_.requires_grad_(True)
         k = self.kernel(X, self.X_)
         y_pred = k @ self.alpha_
         grad_pred = (

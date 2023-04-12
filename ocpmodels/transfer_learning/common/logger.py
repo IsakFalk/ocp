@@ -90,7 +90,7 @@ class WandBLogger(Logger):
         wandb.log({"data": plots})
 
     def log_predictions(self, pred_dir):
-        wandb.save(str(pred_dir) + "/*", policy="now")  # To overwrite previous predictions
+        wandb.save(str(pred_dir) + "/*")  # To overwrite previous predictions
 
     def mark_preempting(self):
         wandb.mark_preempting()

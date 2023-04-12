@@ -70,7 +70,7 @@ class BaseLoader:
         self.config["model_attributes"]["use_pbc"] = self.use_pbc
 
         # Print the current config to stdout
-        print(yaml.dump(self.config, default_flow_style=False))
+        # print(yaml.dump(self.config, default_flow_style=False))
         self.load()
 
     def load(self):
@@ -124,7 +124,8 @@ class BaseLoader:
             regress_forces=self.regress_forces,
             **self.representation_kwargs,
             **self.config["model_attributes"],
-        ).to(self.device)
+        )
+
 
         if distutils.is_master():
             logging.info(

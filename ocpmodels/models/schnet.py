@@ -95,7 +95,6 @@ class SchNetWrap(SchNet, BaseModel):
         # If using the model as representation we output the intermediate layer
         if self.representation:
             self.interactions = self.interactions[:self.representation_layer]
-            self.regress_forces = False  # NOTE: the forces has to be calculated outside
 
     @conditional_grad(torch.enable_grad())
     def _forward(self, data):

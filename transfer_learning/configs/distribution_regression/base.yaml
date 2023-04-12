@@ -21,8 +21,8 @@ dataset:
 
 # Values for logger, such as tagging and name of run
 logger:
-  tags: []
-  name: "schnet-very-test"
+  tags: ["test"]
+  name: "mekrr-gauss-schnet"
 
 kernel:
   k0:

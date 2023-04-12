@@ -11,6 +11,7 @@ import torch.optim as optim
 from tqdm import tqdm
 import torch_geometric
 from torch_geometric.loader import DataLoader
+from torch_geometric.data import Batch
 
 from ocpmodels.common.utils import save_checkpoint
 from ocpmodels.modules.normalizer import Normalizer
@@ -53,15 +54,16 @@ class MEKRRTrainer:
         self.kernel_config = kernel_config  # Config for kernel algorithm
         self.logger_config = copy.deepcopy(logger_config)  # Config for logger
         self.optimizer = copy.deepcopy(optimizer_config)  # Config for optimizer
-        self.model_config = copy.deepcopy(self.kernel_config["representation"])
         self.optimizer["energy_loss_coefficient"] = 1 - self.optimizer.get("force_loss_coefficient", 0.0)
+        self.run_dir = run_dir
+        self.path_run_dir = Path(self.run_dir)
+        self.path_run_dir.mkdir(parents=True, exist_ok=True)
         self.cpu = cpu
         self.print_every = print_every  # Not used here
         self.seed = seed
         self.run_dir = run_dir
         # Create run dir if it doesn't exist
-        path_run_dir = Path(self.run_dir)
-        (path_run_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
+
         self.is_debug = is_debug
 
         if torch.cuda.is_available() and not self.cpu:
@@ -71,14 +73,18 @@ class MEKRRTrainer:
             self.cpu = True
 
         # Load model config directly from pretrained checkpoint
+        # and massage into right form
         self.model_config = torch.load(self.kernel_config["model_checkpoint_path"], map_location="cpu")["config"]
+        name = self.model_config["model"]
+        self.model_config = self.model_config["model_attributes"]
         self.model_config["regress_forces"] = True
 
         self.config = {
-            "model": self.model_config.pop("name"),
+            "model": name,
             "model_attributes": self.model_config,
             "kernel": self.kernel_config,
             "logger": self.logger_config,
+            "optim": self.optimizer,
             "name": name,
             "dataset": self.dataset_config,
         }
@@ -87,8 +93,14 @@ class MEKRRTrainer:
 
         self.load()
 
+        # Setup paths
+        self.checkpoint_dir = self.path_run_dir / "checkpoints" / self.logger.timestamp_id
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self.predictions_dir = self.path_run_dir / "predictions" / self.logger.timestamp_id
+        self.predictions_dir.mkdir(parents=True, exist_ok=True)
+
         self.normalizer = self.config["dataset"]["train"]
-        self.normalizers = dict()
+        self.normalizers = {}
         if self.normalizer.get("normalize_labels", True):
             if "target_mean" in self.normalizer:
                 self.normalizers["target"] = Normalizer(
@@ -179,7 +191,6 @@ class MEKRRTrainer:
             regress_forces=_config["model_attributes"].pop("regress_forces"),
             seed=self.seed,
             cpu=True,  # Since we loaded the model onto the cpu to start
-            strict_load=False,  # as we are loading a model that was trained with a different config
         )
         loader.load_checkpoint(self.kernel_config["model_checkpoint_path"], strict_load=False)
         self.model = loader.model.to(self.device)
@@ -202,12 +213,13 @@ class MEKRRTrainer:
 
     def train(self):
         # Set up data, taking care of normalization
-        y = self.normalizers["target"].norm(self.train_dataset.y.float().to(self.device))
+        y = self.normalizers["target"].norm(self.train_dataset.y.float().to(self.device)).reshape(-1, 1)
         # TODO: Implement gradient fitting
         # grad = self.normalizers["grad_target"].norm(self.train_dataset.force.float().to(self.device))
-        with torch.no_grad():
-            X = self.model(self.train_dataset.to(self.device))
-            self.d = X.shape[-1]
+        X, _ = self.model(self.train_dataset.to(self.device))
+        self.d = X.shape[-1]
+        # TODO: View
+        X = X.reshape(-1, self.config["dataset"]["train"]["num_atoms"], self.d)
 
         # Dispatch to kernel
         if self.config["kernel"].get("k0", "gaussian") == "gaussian":
@@ -229,14 +241,13 @@ class MEKRRTrainer:
         else:
             raise NotImplementedError
 
-        self.estimator = KernelMeanEmbeddingRidgeRegression(self.k1, **self.kernel["regressor_params"])
+        self.regressor = KernelMeanEmbeddingRidgeRegression(self.k1, **self.kernel_config["regressor_params"])
         assert (
             X.shape[0] == self.dataset_config["train"]["num_frames"]
             and X.shape[1] == self.dataset_config["train"]["num_atoms"]
         ), "X should have shape (num_frames, num_atoms, d)"
-        self.estimator.fit(X, y)
+        self.regressor.fit(X, y)
 
-    @torch.no_grad()
     def validate(self, split="val"):
         self.model.eval()
         dataset = self.val_dataset if split == "val" else self.test_dataset
@@ -255,6 +266,7 @@ class MEKRRTrainer:
         if self.logger is not None:
             self.logger.log(
                 log_dict,
+                step=0,
                 split=split,
             )
 
@@ -297,11 +309,13 @@ class MEKRRTrainer:
         return metrics
 
     def _forward(self, dataset, num_atoms):
-        # forward pass.
-        X = self.model(dataset.to(self.device))  # (num_frames, num_atoms, d)
+        # forward pass
+        dataset = Batch.from_data_list(dataset[:]).to(self.device)
+        dataset.pos.requires_grad_(True)
+        X, _ = self.model(dataset)  # (num_frames, num_atoms, d)
+        X = X.reshape(-1, num_atoms, self.d)
         if self.config["model_attributes"].get("regress_forces", True):
-            dataset.pos.requires_grad = True
-            out_energy, out_grad = self.regressor.predict_y_and_and_grad(X, dataset.pos.to(self.device))
+            out_energy, out_grad = self.regressor.predict_y_and_grad(X, dataset.pos)
             out_forces = -out_grad.reshape(-1, 3)
         else:
             out_energy = self.regressor.predict(X)
@@ -350,13 +364,10 @@ class MEKRRTrainer:
         return loss, losses
 
     # Takes in a new data source and generates predictions on it.
-    @torch.no_grad()
     def predict(
         self,
         dataset,
         num_atoms,
-        results_file=None,
-        log_results=True,
     ):
         logging.info("Predicting.")
         # self.model.eval()
@@ -484,6 +495,12 @@ class GNNTrainer:
         pprint(self.config)
 
         self.load()
+
+        # Setup paths
+        self.checkpoint_dir = self.path_run_dir / "checkpoints" / self.logger.timestamp_id
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self.predictions_dir = self.path_run_dir / "predictions" / self.logger.timestamp_id
+        self.predictions_dir.mkdir(parents=True, exist_ok=True)
 
         # If we're computing gradients wrt input, set mean of normalizer to 0 --
         # since it is lost when compute dy / dx -- and std to forward target std
@@ -748,6 +765,7 @@ class GNNTrainer:
             )
         # Save best predictions
         if "predict" in self.task_config:
+            array_dict = {}
             for split in self.task_config["predict"]:
                 if split == "train":
                     loader = self.train_loader
@@ -759,9 +777,11 @@ class GNNTrainer:
                 out = self.predict(loader, disable_tqdm=False)
                 out = {k: torch_tensor_to_npy(v) for k, v in out.items()}
                 for key, val in out.items():
-                    with open(self.predictions_dir / f"{split}_pred_{key}.npy", "wb") as f:
-                        np.save(f, val)
-                self.logger.log_predictions(self.predictions_dir)
+                    array_dict[f"{split}_{key}"] = val
+            with open(self.predictions_dir / "predictions.npz", "wb") as f:
+                np.savez(f, **array_dict)
+
+            self.logger.log_predictions(self.predictions_dir)
 
     @torch.no_grad()
     def validate(self, split="val", disable_tqdm=False):
