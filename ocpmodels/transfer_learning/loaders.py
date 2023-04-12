@@ -103,7 +103,6 @@ class BaseLoader:
 
         setup_imports()
 
-
         # Build model
         if distutils.is_master():
             logging.info(f"Loading model: {self.config['model']}")
