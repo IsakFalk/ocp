@@ -117,3 +117,4 @@ Local
 EXTRA.org
 *.png
 pyrightconfig.json
+**/predictions/**/*
