@@ -42,7 +42,7 @@ class Logger(ABC):
         pass
 
     @abstractmethod
-    def log_predictions(self, predictions):
+    def log_predictions(self, pred_dir):
         pass
 
     @abstractmethod
@@ -63,13 +63,19 @@ class WandBLogger(Logger):
         wandb.init(
             config=self.config,
             save_code=True,
-            id=self.timestamp_id,
-            name=self.config["logger"].get("name", "noname"),
+            name=f"{self.timestamp_id}-{self.config['logger'].get('name', '')}",
             entity=entity,
             project=project,
             resume="allow",
             tags=self.config["logger"].get("tags", []),
         )
+
+        # Define summary metrics
+        for split in ["train", "val", "test"]:
+            wandb.define_metric(f"{split}/step")
+            wandb.define_metric(f"{split}/loss", step_metric=f"{split}/step")
+            wandb.define_metric(f"{split}/loss_energy", step_metric=f"{split}/step")
+            wandb.define_metric(f"{split}/loss_force", step_metric=f"{split}/step")
 
     def watch(self, model):
         wandb.watch(model)
@@ -83,8 +89,8 @@ class WandBLogger(Logger):
         plots = [wandb.Image(x, caption=caption) for x in plots]
         wandb.log({"data": plots})
 
-    def log_predictions(self, predictions):
-        wandb.log({"predictions": predictions})
+    def log_predictions(self, pred_dir):
+        wandb.save(str(pred_dir) + "/*", policy="now")  # To overwrite previous predictions
 
     def mark_preempting(self):
         wandb.mark_preempting()
