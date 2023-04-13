@@ -58,9 +58,7 @@ class LBFGS:
             self.model.update_graph(self.batch)
 
     def get_energy_and_forces(self, apply_constraint=True):
-        energy, forces = self.model.get_energy_and_forces(
-            self.batch, apply_constraint
-        )
+        energy, forces = self.model.get_energy_and_forces(self.batch, apply_constraint)
         return energy, forces
 
     def set_positions(self, update, update_mask):
@@ -76,13 +74,8 @@ class LBFGS:
             energy, forces = self.get_energy_and_forces()
             forces = forces.to(dtype=torch.float64)
 
-        max_forces_ = scatter(
-            (forces**2).sum(axis=1).sqrt(), self.batch.batch, reduce="max"
-        )
-        logging.info(
-            f"{iteration} "
-            + " ".join(f"{x:0.3f}" for x in max_forces_.tolist())
-        )
+        max_forces_ = scatter((forces**2).sum(axis=1).sqrt(), self.batch.batch, reduce="max")
+        logging.info(f"{iteration} " + " ".join(f"{x:0.3f}" for x in max_forces_.tolist()))
 
         # (batch_size) -> (nAtoms)
         max_forces = max_forces_[self.batch.batch]
@@ -102,8 +95,7 @@ class LBFGS:
         if self.traj_dir:
             self.traj_dir.mkdir(exist_ok=True, parents=True)
             self.trajectories = [
-                ase.io.Trajectory(self.traj_dir / f"{name}.traj_tmp", mode="w")
-                for name in self.traj_names
+                ase.io.Trajectory(self.traj_dir / f"{name}.traj_tmp", mode="w") for name in self.traj_names
             ]
 
         iteration = 0
@@ -113,12 +105,7 @@ class LBFGS:
             converged = torch.all(torch.logical_not(update_mask))
 
             if self.trajectories is not None:
-                if (
-                    self.save_full
-                    or converged
-                    or iteration == steps - 1
-                    or iteration == 0
-                ):
+                if self.save_full or converged or iteration == steps - 1 or iteration == 0:
                     self.write(energy, forces, update_mask)
 
             if not converged and iteration < steps - 1:
@@ -137,9 +124,7 @@ class LBFGS:
                 traj_fl = Path(self.traj_dir / f"{name}.traj_tmp", mode="w")
                 traj_fl.rename(traj_fl.with_suffix(".traj"))
 
-        self.batch.y, self.batch.force = self.get_energy_and_forces(
-            apply_constraint=False
-        )
+        self.batch.y, self.batch.force = self.get_energy_and_forces(apply_constraint=False)
         return self.batch
 
     def step(
@@ -150,14 +135,10 @@ class LBFGS:
     ):
         def determine_step(dr):
             steplengths = torch.norm(dr, dim=1)
-            longest_steps = scatter(
-                steplengths, self.batch.batch, reduce="max"
-            )
+            longest_steps = scatter(steplengths, self.batch.batch, reduce="max")
             longest_steps = longest_steps[self.batch.batch]
             maxstep = longest_steps.new_tensor(self.maxstep)
-            scale = (longest_steps + 1e-7).reciprocal() * torch.min(
-                longest_steps, maxstep
-            )
+            scale = (longest_steps + 1e-7).reciprocal() * torch.min(longest_steps, maxstep)
             dr *= scale.unsqueeze(1)
             return dr * self.damping
 
@@ -205,9 +186,7 @@ class LBFGS:
         self.batch.y, self.batch.force = energy, forces
         atoms_objects = batch_to_atoms(self.batch)
         update_mask_ = torch.split(update_mask, self.batch.natoms.tolist())
-        for atm, traj, mask in zip(
-            atoms_objects, self.trajectories, update_mask_
-        ):
+        for atm, traj, mask in zip(atoms_objects, self.trajectories, update_mask_):
             if mask[0] or not self.save_full:
                 traj.write(atm)
 
@@ -218,9 +197,7 @@ class TorchCalc:
         self.transform = transform
 
     def get_energy_and_forces(self, atoms, apply_constraint=True):
-        predictions = self.model.predict(
-            atoms, per_image=False, disable_tqdm=True
-        )
+        predictions = self.model.predict(atoms, per_image=False, disable_tqdm=True)
         energy = predictions["energy"]
         forces = predictions["forces"]
         if apply_constraint:
@@ -229,9 +206,7 @@ class TorchCalc:
         return energy, forces
 
     def update_graph(self, atoms):
-        edge_index, cell_offsets, num_neighbors = radius_graph_pbc(
-            atoms, 6, 50
-        )
+        edge_index, cell_offsets, num_neighbors = radius_graph_pbc(atoms, 6, 50)
         atoms.edge_index = edge_index
         atoms.cell_offsets = cell_offsets
         atoms.neighbors = num_neighbors

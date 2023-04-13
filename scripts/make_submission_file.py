@@ -72,9 +72,7 @@ def write_predictions(args):
 
 def main(args):
     for split in SPLITS[args.dataset]:
-        assert vars(args).get(
-            split
-        ), f"Missing {split} split for {args.dataset}"
+        assert vars(args).get(split), f"Missing {split} split for {args.dataset}"
 
     if not args.out_path.endswith(".npz"):
         args.out_path = args.out_path + ".npz"
@@ -110,21 +108,11 @@ if __name__ == "__main__":
     """
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--id", help="Path to ID results. Required for OC20 and OC22."
-    )
-    parser.add_argument(
-        "--ood-ads", help="Path to OOD-Ads results. Required only for OC20."
-    )
-    parser.add_argument(
-        "--ood-cat", help="Path to OOD-Cat results. Required only for OC20."
-    )
-    parser.add_argument(
-        "--ood-both", help="Path to OOD-Both results. Required only for OC20."
-    )
-    parser.add_argument(
-        "--ood", help="Path to OOD OC22 results. Required only for OC22."
-    )
+    parser.add_argument("--id", help="Path to ID results. Required for OC20 and OC22.")
+    parser.add_argument("--ood-ads", help="Path to OOD-Ads results. Required only for OC20.")
+    parser.add_argument("--ood-cat", help="Path to OOD-Cat results. Required only for OC20.")
+    parser.add_argument("--ood-both", help="Path to OOD-Both results. Required only for OC20.")
+    parser.add_argument("--ood", help="Path to OOD OC22 results. Required only for OC22.")
     parser.add_argument("--out-path", help="Path to write predictions to.")
     parser.add_argument(
         "--is2re-relaxations",

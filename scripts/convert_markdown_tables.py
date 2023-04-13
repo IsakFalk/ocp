@@ -1,15 +1,17 @@
 """Convert model markdown tables to tsv tables."""
-from pathlib import Path
-import os
-from io import StringIO
-import re
-import pickle as pkl
-import pandas as pd
 import argparse
-from glob import glob
 import logging
+import os
+import pickle as pkl
+import re
+from glob import glob
+from io import StringIO
+from pathlib import Path
+
+import pandas as pd
 
 import ocpmodels
+
 
 def extract_text_tables():
     """Extract text tables from the MODELS.md file."""
@@ -43,7 +45,9 @@ def extract_text_tables():
 
     return table_s2ef_optimized_efwt, table_s2ef_optimized_force, table_is2re
 
+
 table_s2ef_optimized_efwt, table_s2ef_optimized_force, table_is2re = extract_text_tables()
+
 
 def transform_is2re_table(datapath):
     """Transforms the IS2RE table to a tsv file."""
@@ -56,9 +60,7 @@ def transform_is2re_table(datapath):
     tab = tab.replace("\t", "")
     tab = tab.replace("|\n|", "\n")
     tab = tab.replace(" ", "")
-    tab = tab.replace("github.com", "raw.githubusercontent.com").replace(
-        "/blob/main", "/main"
-    )  # for downloading
+    tab = tab.replace("github.com", "raw.githubusercontent.com").replace("/blob/main", "/main")  # for downloading
     tab = tab[:-2]  # Remove last |\n
     tab = tab.split("\n")
     # Remove the header since we'll create it implicitly, and null string
@@ -83,7 +85,6 @@ def transform_is2re_table(datapath):
             data_dict[key] = None
         line_of_dicts.append(data_dict)
 
-
     df = pd.DataFrame(line_of_dicts)
     df.to_csv(datapath / "model_table_is2re.tsv", sep="\t", index=False)
 
@@ -99,9 +100,7 @@ def transform_s2ef_optimized_efwt_table(datapath):
     tab = tab.replace("\t", "")
     tab = tab.replace("|\n|", "\n")
     tab = tab.replace(" ", "")
-    tab = tab.replace(
-        "github.com", "raw.githubusercontent.com"
-    )  # For downloading...
+    tab = tab.replace("github.com", "raw.githubusercontent.com")  # For downloading...
     tab = tab.replace("/blob/main", "/main")  # and for fixing the links
     tab = tab[:-2]  # Remove last |\n
     tab = tab.split("\n")
@@ -130,9 +129,8 @@ def transform_s2ef_optimized_efwt_table(datapath):
         line_of_dicts.append(data_dict)
 
     df = pd.DataFrame(line_of_dicts)
-    df.to_csv(
-        datapath / "model_table_s2ef_optimized_efwt.tsv", sep="\t", index=False
-    )
+    df.to_csv(datapath / "model_table_s2ef_optimized_efwt.tsv", sep="\t", index=False)
+
 
 def transform_s2ef_optimized_force_table(datapath):
     """Transforms the S2EF table to a tsv file."""
@@ -145,9 +143,7 @@ def transform_s2ef_optimized_force_table(datapath):
     tab = tab.replace("\t", "")
     tab = tab.replace("|\n|", "\n")
     tab = tab.replace(" ", "")
-    tab = tab.replace("github.com", "raw.githubusercontent.com").replace(
-        "/blob/main", "/main"
-    )  # for downloading
+    tab = tab.replace("github.com", "raw.githubusercontent.com").replace("/blob/main", "/main")  # for downloading
     tab = tab[:-3]  # Remove last |\n
     tab = tab.split("\n")
     # Remove the header since we'll create it implicitly, and null string

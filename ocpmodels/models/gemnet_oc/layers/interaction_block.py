@@ -222,10 +222,7 @@ class InteractionBlock(torch.nn.Module):
             activation=activation,
         )
         self.residual_m = torch.nn.ModuleList(
-            [
-                ResidualLayer(emb_size_edge, activation=activation)
-                for _ in range(num_concat)
-            ]
+            [ResidualLayer(emb_size_edge, activation=activation) for _ in range(num_concat)]
         )
 
         self.inv_sqrt_2 = 1 / math.sqrt(2.0)
@@ -423,9 +420,7 @@ class QuadrupletInteraction(torch.nn.Module):
         )
         self.scale_cbf = ScaleFactor()
 
-        self.mlp_sbf = EfficientInteractionBilinear(
-            emb_size_quad_in, emb_size_sbf, emb_size_quad_out
-        )
+        self.mlp_sbf = EfficientInteractionBilinear(emb_size_quad_in, emb_size_sbf, emb_size_quad_out)
         self.scale_sbf_sum = ScaleFactor()
         # combines scaling for bilinear layer and summation
 
@@ -573,9 +568,7 @@ class TripletInteraction(torch.nn.Module):
         )
         self.scale_rbf = ScaleFactor()
 
-        self.mlp_cbf = EfficientInteractionBilinear(
-            emb_size_trip_in, emb_size_cbf, emb_size_trip_out
-        )
+        self.mlp_cbf = EfficientInteractionBilinear(emb_size_trip_in, emb_size_cbf, emb_size_trip_out)
         self.scale_cbf_sum = ScaleFactor()
         # combines scaling for bilinear layer and summation
 

@@ -45,9 +45,7 @@ class BaseLoader:
         self.regress_forces = regress_forces
         self.use_pbc = use_pbc
         self.cpu = cpu  # TODO: Have not been tested with cuda but should work
-        self.num_targets = (
-            1  # NOTE: This is due to OCP code and should be fixed to 1
-        )
+        self.num_targets = 1  # NOTE: This is due to OCP code and should be fixed to 1
 
         # Don't mutate the original model dict
         model = copy.deepcopy(model)
@@ -111,9 +109,7 @@ class BaseLoader:
 
         # TODO: Says it's deprecated in the OCP code but it's required for now
         bond_feat_dim = None
-        bond_feat_dim = self.config["model_attributes"].get(
-            "num_gaussians", 50
-        )
+        bond_feat_dim = self.config["model_attributes"].get("num_gaussians", 50)
 
         # Load the model class from the registry
         self.model = registry.get_model_class(self.config["model"])(
@@ -126,18 +122,12 @@ class BaseLoader:
             **self.config["model_attributes"],
         )
 
-
         if distutils.is_master():
-            logging.info(
-                f"Loaded {self.model.__class__.__name__} with "
-                f"{self.model.num_params} parameters."
-            )
+            logging.info(f"Loaded {self.model.__class__.__name__} with " f"{self.model.num_params} parameters.")
 
     def load_checkpoint(self, checkpoint_path, strict_load=True):
         if not os.path.isfile(checkpoint_path):
-            raise FileNotFoundError(
-                errno.ENOENT, "Checkpoint file not found", checkpoint_path
-            )
+            raise FileNotFoundError(errno.ENOENT, "Checkpoint file not found", checkpoint_path)
 
         logging.info(f"Loading checkpoint from: {checkpoint_path}")
         map_location = torch.device("cpu") if self.cpu else self.device
@@ -156,15 +146,9 @@ class BaseLoader:
         key_count_diff = mod_key_count - ckpt_key_count
 
         if key_count_diff > 0:
-            new_dict = {
-                key_count_diff * "module." + k: v
-                for k, v in checkpoint["state_dict"].items()
-            }
+            new_dict = {key_count_diff * "module." + k: v for k, v in checkpoint["state_dict"].items()}
         elif key_count_diff < 0:
-            new_dict = {
-                k[len("module.") * abs(key_count_diff) :]: v
-                for k, v in checkpoint["state_dict"].items()
-            }
+            new_dict = {k[len("module.") * abs(key_count_diff) :]: v for k, v in checkpoint["state_dict"].items()}
         else:
             new_dict = checkpoint["state_dict"]
 
@@ -172,27 +156,21 @@ class BaseLoader:
         # related to the keys. This is due to the method ocpmodels.common.utils._report_incompat_keys
         # load_state_dict(self.model, new_dict, strict=strict_load)
         # Instead we mimic the checks they would do here taking care of errors
-        incompat_keys = self.model.load_state_dict(
-            new_dict, strict=strict_load
-        )
+        incompat_keys = self.model.load_state_dict(new_dict, strict=strict_load)
 
         error_msgs = []
         if len(incompat_keys.unexpected_keys) > 0:
             error_msgs.insert(
                 0,
                 "Unexpected key(s) in state_dict: {}. ".format(
-                    ", ".join(
-                        '"{}"'.format(k) for k in incompat_keys.unexpected_keys
-                    )
+                    ", ".join('"{}"'.format(k) for k in incompat_keys.unexpected_keys)
                 ),
             )
         if len(incompat_keys.missing_keys) > 0:
             error_msgs.insert(
                 0,
                 "Missing key(s) in state_dict: {}. ".format(
-                    ", ".join(
-                        '"{}"'.format(k) for k in incompat_keys.missing_keys
-                    )
+                    ", ".join('"{}"'.format(k) for k in incompat_keys.missing_keys)
                 ),
             )
 

@@ -13,6 +13,7 @@ class Kernel(ABC):
     def __call__(self, x, y):
         pass
 
+
 class MeanEmbeddingKernel(ABC):
     def __init__(self, kernel: Kernel):
         self.kernel = kernel
@@ -23,7 +24,7 @@ class MeanEmbeddingKernel(ABC):
 
     def _mean_embedding_kernel(self, x: Tensor, y: Tensor) -> Tensor:
         t, n, d = x.shape
-        l, m, d = y.shape # noqa
+        l, m, d = y.shape  # noqa
         x = x.reshape(t * n, d)
         y = y.reshape(l * m, d)
         k0 = self.kernel(x, y).reshape(t, n, l, m)  # t x n x l x m
@@ -31,12 +32,14 @@ class MeanEmbeddingKernel(ABC):
         k = k0.sum(axis=(1, 3)) / (n * m)
         return k
 
+
 class GaussianKernel(Kernel):
     def __init__(self, sigma: float = 1.0):
         self.sigma = sigma
 
     def __call__(self, x: Tensor, y: Tensor) -> Tensor:
-        return torch.exp(-torch.cdist(x, y, p=2) ** 2 / (2 * self.sigma ** 2))
+        return torch.exp(-torch.cdist(x, y, p=2) ** 2 / (2 * self.sigma**2))
+
 
 class LinearMeanEmbeddingKernel(MeanEmbeddingKernel):
     def __init__(self, kernel: Kernel):
@@ -55,8 +58,9 @@ class GaussianMeanEmbeddingKernel(MeanEmbeddingKernel):
         kxx = self._mean_embedding_kernel(x, x).diag().reshape(-1, 1)
         kyy = self._mean_embedding_kernel(y, y).diag().reshape(1, -1)
         kxy = self._mean_embedding_kernel(x, y)
-        k = kxx + kyy - 2 * kxy # this is like ||x-y||^2 vectorized
-        return torch.exp(-k / (2 * self.sigma ** 2))
+        k = kxx + kyy - 2 * kxy  # this is like ||x-y||^2 vectorized
+        return torch.exp(-k / (2 * self.sigma**2))
+
 
 # Estimators
 ### Create distribution regression
@@ -72,6 +76,7 @@ class GaussianMeanEmbeddingKernel(MeanEmbeddingKernel):
 ### of size T x T x N x N and then sum over the last two dimensions
 ### (or equivalently)
 
+
 class KernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
     def __init__(self, kernel: MeanEmbeddingKernel, lmbda: float = 1.0):
         self.kernel = kernel
@@ -84,7 +89,7 @@ class KernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
         self.y_ = y
 
         k = self.kernel(X, X)
-        #klmbda = k + torch.eye(k.shape[0]) * self.lmbda
+        # klmbda = k + torch.eye(k.shape[0]) * self.lmbda
         # Below is the same as above but avoids the creation of a new tensor on a different device
         klmbda = (k - k.diag().diag()) + (self.lmbda + k.diag()).diag()
         self.k_ = k
@@ -117,6 +122,7 @@ class KernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
         y_pred = self.predict(X)
         return float(mean_squared_error(y, y_pred))
 
+
 def median_heuristic(x: Tensor, y: Tensor) -> float:
     return float(torch.median(torch.cdist(x, y, p=2)))
 
@@ -124,6 +130,7 @@ def median_heuristic(x: Tensor, y: Tensor) -> float:
 # Sklearn utilities
 class TorchStandardScaler:
     """Standardization for torch"""
+
     def __init__(self, eps=1e-7):
         self.eps = eps
 
@@ -133,13 +140,14 @@ class TorchStandardScaler:
 
     def transform(self, x):
         x -= self.mean_
-        x /= (self.std_ + self.eps)
+        x /= self.std_ + self.eps
         return x
 
     def inverse_transform(self, x):
-        x *= (self.std_ + self.eps)
+        x *= self.std_ + self.eps
         x += self.mean_
         return x
+
 
 class StandardizedOutputRegression(BaseEstimator, RegressorMixin):
     """Wrapper class which standardizes the output of a univariate regression model (torch)

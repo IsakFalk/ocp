@@ -24,9 +24,9 @@ There&rsquo;s a `main.py` file which is the entrypoint for all training. **Run t
 from the command line and running `python main.py --help` yields the output
 
     usage: main.py [-h] --config-yml CONFIG_YML [--debug] [--run-dir RUN_DIR] [--print-every PRINT_EVERY] [--seed SEED] [--cpu]
-    
+
     Graph Networks for Electrocatalyst Design
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --config-yml CONFIG_YML
@@ -88,11 +88,11 @@ without comments is shown below
         src: data/luigi/example-traj-Fe-N2-111.xyz
       test:
         src: data/luigi/example-traj-Fe-N2-111.xyz
-    
+
     logger:
       tags: []
       name: "schnet-very-good"
-    
+
     model:
       name: "schnet"
       hidden_channels: 4
@@ -100,7 +100,7 @@ without comments is shown below
       num_gaussians: 8
       num_interactions: 1
       otf_graph: True
-    
+
     optim:
       batch_size: 8
       eval_batch_size: 8
@@ -113,15 +113,15 @@ without comments is shown below
       weight_decay: 0.0
       scheduler: 'Null'
       max_epochs: 20
-    
+
     hide_eval_progressbar: False
-    
+
     task:
       train: True
       validate: True
       test: True
       predict: ["train", "val", "test"]
-    
+
     runner: "GNN"
 
 Note that this config may change depending on the runner, but the top level keys
@@ -135,4 +135,3 @@ good way to structure your config and may even be necessary.
 
 We would like to log everything to wandb so that we can have it available to
 look through. Let me know if you need help with this.
-

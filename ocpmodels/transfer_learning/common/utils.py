@@ -2,23 +2,24 @@ import copy
 from pathlib import Path
 
 import ase.io
+import torch
 import yaml
 from ase import Atoms
 from torch_geometric.data import Batch
-import torch
 
 from ocpmodels.preprocessing import AtomsToGraphs
 
-
 # Keyword arguments for converting ASE Atoms objects to PyTorch Geometric Batch objects per model
 ATOMS_TO_GRAPH_KWARGS = {
-    "schnet": {"max_neigh": 50,
-               "radius": 6,
-               "r_energy": True,
-               "r_forces": True,
-               "r_distances": False,
-               "r_edges": True,
-               "r_fixed": True}
+    "schnet": {
+        "max_neigh": 50,
+        "radius": 6,
+        "r_energy": True,
+        "r_forces": True,
+        "r_distances": False,
+        "r_edges": True,
+        "r_fixed": True,
+    }
 }
 
 

@@ -163,9 +163,7 @@ class AtomsToGraphs:
         if self.r_edges:
             # run internal functions to get padded indices and distances
             split_idx_dist = self._get_neighbors_pymatgen(atoms)
-            edge_index, edge_distances, cell_offsets = self._reshape_features(
-                *split_idx_dist
-            )
+            edge_index, edge_distances, cell_offsets = self._reshape_features(*split_idx_dist)
 
             data.edge_index = edge_index
             data.cell_offsets = cell_offsets
@@ -218,9 +216,9 @@ class AtomsToGraphs:
             atoms_iter = atoms_collection
         elif isinstance(atoms_collection, ase.db.sqlite.SQLite3Database):
             atoms_iter = atoms_collection.select()
-        elif isinstance(
-            atoms_collection, ase.io.trajectory.SlicedTrajectory
-        ) or isinstance(atoms_collection, ase.io.trajectory.TrajectoryReader):
+        elif isinstance(atoms_collection, ase.io.trajectory.SlicedTrajectory) or isinstance(
+            atoms_collection, ase.io.trajectory.TrajectoryReader
+        ):
             atoms_iter = atoms_collection
         else:
             raise NotImplementedError

@@ -26,24 +26,16 @@ def decompress_list_of_files(ip_op_pair):
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--ipdir", type=str, help="Path to compressed dataset directory"
-    )
-    parser.add_argument(
-        "--opdir", type=str, help="Directory path to uncompress files to"
-    )
-    parser.add_argument(
-        "--num-workers", type=int, help="# of processes to parallelize across"
-    )
+    parser.add_argument("--ipdir", type=str, help="Path to compressed dataset directory")
+    parser.add_argument("--opdir", type=str, help="Directory path to uncompress files to")
+    parser.add_argument("--num-workers", type=int, help="# of processes to parallelize across")
     return parser
 
 
 def main(args):
     os.makedirs(args.opdir, exist_ok=True)
 
-    filelist = glob.glob(os.path.join(args.ipdir, "*txt.xz")) + glob.glob(
-        os.path.join(args.ipdir, "*extxyz.xz")
-    )
+    filelist = glob.glob(os.path.join(args.ipdir, "*txt.xz")) + glob.glob(os.path.join(args.ipdir, "*extxyz.xz"))
     ip_op_pairs = []
     for i in filelist:
         fname_base = os.path.basename(i)

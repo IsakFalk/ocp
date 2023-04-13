@@ -58,9 +58,7 @@ class LmdbDataset(Dataset):
             self._keys, self.envs = [], []
             for db_path in db_paths:
                 self.envs.append(self.connect_db(db_path))
-                length = pickle.loads(
-                    self.envs[-1].begin().get("length".encode("ascii"))
-                )
+                length = pickle.loads(self.envs[-1].begin().get("length".encode("ascii")))
                 self._keys.append(list(range(length)))
 
             keylens = [len(k) for k in self._keys]
@@ -69,10 +67,7 @@ class LmdbDataset(Dataset):
         else:
             self.metadata_path = self.path.parent / "metadata.npz"
             self.env = self.connect_db(self.path)
-            self._keys = [
-                f"{j}".encode("ascii")
-                for j in range(self.env.stat()["entries"])
-            ]
+            self._keys = [f"{j}".encode("ascii") for j in range(self.env.stat()["entries"])]
             self.num_samples = len(self._keys)
 
         # If specified, limit dataset to only a portion of the entire dataset
@@ -83,9 +78,7 @@ class LmdbDataset(Dataset):
             self.sharded = True
             self.indices = range(self.num_samples)
             # split all available indices into 'total_shards' bins
-            self.shards = np.array_split(
-                self.indices, self.config.get("total_shards", 1)
-            )
+            self.shards = np.array_split(self.indices, self.config.get("total_shards", 1))
             # limit each process to see a subset of data based off defined shard
             self.available_indices = self.shards[self.config.get("shard", 0)]
             self.num_samples = len(self.available_indices)
@@ -109,11 +102,7 @@ class LmdbDataset(Dataset):
             assert el_idx >= 0
 
             # Return features.
-            datapoint_pickled = (
-                self.envs[db_idx]
-                .begin()
-                .get(f"{self._keys[db_idx][el_idx]}".encode("ascii"))
-            )
+            datapoint_pickled = self.envs[db_idx].begin().get(f"{self._keys[db_idx][el_idx]}".encode("ascii"))
             data_object = pyg2_data_transform(pickle.loads(datapoint_pickled))
             data_object.id = f"{db_idx}_{el_idx}"
         else:
@@ -176,8 +165,6 @@ def data_list_collater(data_list, otf_graph=False):
                 n_neighbors.append(n_index.shape[0])
             batch.neighbors = torch.tensor(n_neighbors)
         except (NotImplementedError, TypeError):
-            logging.warning(
-                "LMDB does not contain edge index information, set otf_graph=True"
-            )
+            logging.warning("LMDB does not contain edge index information, set otf_graph=True")
 
     return batch

@@ -1,12 +1,14 @@
-from pathlib import Path
+import argparse
+import logging
 import os
 import pickle as pkl
-import pandas as pd
-import argparse
 from glob import glob
-import logging
+from pathlib import Path
+
+import pandas as pd
 
 import ocpmodels
+
 
 def create_adslabid_and_sid(datadir: Path, num: int, data_mapping: dict) -> pd.DataFrame:
     """Takes the top is2re_adsorbate path and outputs the cat_id for all randomXXX strings"""
@@ -30,6 +32,7 @@ def create_adslabid_and_sid(datadir: Path, num: int, data_mapping: dict) -> pd.D
         ads_ids.append(data_mapping[sid]["ads_id"])
     return pd.DataFrame({"sid": s_ids, "cat_id": cat_ids, "ads_id": ads_ids})
 
+
 def map_pairs_for_all_is2re(datadir: str) -> dict:
     datadir = Path(datadir)
     try:
@@ -52,6 +55,7 @@ def map_pairs_for_all_is2re(datadir: str) -> dict:
         dfs.append(create_adslabid_and_sid(ads_datadir, num, data_mapping))
     df = pd.concat(dfs)
     df.to_csv(datadir / "auxiliary" / "adslabid_and_sid.tsv", sep="\t", index=False)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

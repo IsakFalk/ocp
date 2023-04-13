@@ -50,17 +50,13 @@ def setup_gp(config):
     found = [x.item() for x in torch.where(groups == rank)]
 
     global _DATA_PARALLEL_GROUP
-    assert (
-        _DATA_PARALLEL_GROUP is None
-    ), "data parallel group is already initialized"
+    assert _DATA_PARALLEL_GROUP is None, "data parallel group is already initialized"
     for j in range(gp_size):
         group = dist.new_group(groups[:, j].tolist(), backend=backend)
         if j == found[1]:
             _DATA_PARALLEL_GROUP = group
     global _GRAPH_PARALLEL_GROUP
-    assert (
-        _GRAPH_PARALLEL_GROUP is None
-    ), "graph parallel group is already initialized"
+    assert _GRAPH_PARALLEL_GROUP is None, "graph parallel group is already initialized"
     for i in range(dp_size):
         group = dist.new_group(groups[i, :].tolist(), backend=backend)
         if i == found[0]:
@@ -97,9 +93,7 @@ def get_dp_world_size():
 
 
 def get_gp_world_size():
-    return (
-        1 if not initialized() else dist.get_world_size(group=get_gp_group())
-    )
+    return 1 if not initialized() else dist.get_world_size(group=get_gp_group())
 
 
 ########## DIST METHODS ##########
@@ -123,9 +117,7 @@ def pad_tensor(tensor: torch.Tensor, dim: int = -1, target_size: int = None):
     return torch.cat([tensor, padding], dim=dim)
 
 
-def trim_tensor(
-    tensor: torch.Tensor, sizes: torch.Tensor = None, dim: int = 0
-):
+def trim_tensor(tensor: torch.Tensor, sizes: torch.Tensor = None, dim: int = 0):
     size = tensor.size(dim)
     world_size = get_gp_world_size()
     if size % world_size == 0:
@@ -195,13 +187,8 @@ def _gather_with_padding(input: torch.Tensor, dim: int = -1):
         return input
 
     # Gather sizes
-    size_list = [
-        torch.empty(1, device=input.device, dtype=torch.long)
-        for _ in range(world_size)
-    ]
-    size = torch.tensor(
-        [input.size(dim)], device=input.device, dtype=torch.long
-    )
+    size_list = [torch.empty(1, device=input.device, dtype=torch.long) for _ in range(world_size)]
+    size = torch.tensor([input.size(dim)], device=input.device, dtype=torch.long)
     size_list[rank] = size
     dist.all_gather(size_list, size, group=group)
 
@@ -210,22 +197,15 @@ def _gather_with_padding(input: torch.Tensor, dim: int = -1):
     input = pad_tensor(input, dim, max_size)
     shape = list(input.shape)
     shape[dim] = max_size
-    tensor_list = [
-        torch.empty(shape, device=input.device, dtype=input.dtype)
-        for _ in range(world_size)
-    ]
+    tensor_list = [torch.empty(shape, device=input.device, dtype=input.dtype) for _ in range(world_size)]
     tensor_list[rank] = input
     dist.all_gather(tensor_list, input, group=group)
 
     # Trim and cat
     if dim == 0:
-        tensor_list = [
-            tensor[:size] for tensor, size in zip(tensor_list, size_list)
-        ]
+        tensor_list = [tensor[:size] for tensor, size in zip(tensor_list, size_list)]
     elif dim == 1:
-        tensor_list = [
-            tensor[:, :size] for tensor, size in zip(tensor_list, size_list)
-        ]
+        tensor_list = [tensor[:, :size] for tensor, size in zip(tensor_list, size_list)]
     else:
         raise ValueError
     return torch.cat(tensor_list, dim=dim).contiguous()
@@ -292,13 +272,9 @@ def reduce_from_model_parallel_region(input: torch.Tensor) -> torch.Tensor:
     return ReduceFromModelParallelRegion.apply(input)
 
 
-def scatter_to_model_parallel_region(
-    input: torch.Tensor, dim: int = -1
-) -> torch.Tensor:
+def scatter_to_model_parallel_region(input: torch.Tensor, dim: int = -1) -> torch.Tensor:
     return ScatterToModelParallelRegion.apply(input, dim)
 
 
-def gather_from_model_parallel_region(
-    input: torch.Tensor, dim: int = -1
-) -> torch.Tensor:
+def gather_from_model_parallel_region(input: torch.Tensor, dim: int = -1) -> torch.Tensor:
     return GatherFromModelParallelRegion.apply(input, dim)

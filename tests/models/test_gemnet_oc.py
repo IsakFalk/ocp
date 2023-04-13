@@ -53,9 +53,7 @@ def load_model(request):
     # and then load it with torch.load
     r = requests.get(checkpoint_url, stream=True)
     r.raise_for_status()
-    checkpoint = torch.load(
-        io.BytesIO(r.content), map_location=torch.device("cpu")
-    )
+    checkpoint = torch.load(io.BytesIO(r.content), map_location=torch.device("cpu"))
 
     model = registry.get_model_class("gemnet_oc")(
         None,
@@ -109,9 +107,7 @@ def load_model(request):
         scale_file=checkpoint["scale_dict"],
     )
 
-    new_dict = {
-        k[len("module.") * 2 :]: v for k, v in checkpoint["state_dict"].items()
-    }
+    new_dict = {k[len("module.") * 2 :]: v for k, v in checkpoint["state_dict"].items()}
     load_state_dict(model, new_dict)
 
     request.cls.model = model

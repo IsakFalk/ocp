@@ -9,19 +9,24 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from dscribe.descriptors import SOAP, ACSF
+from dscribe.descriptors import ACSF, SOAP
 from sklearn.dummy import DummyRegressor
 from sklearn.linear_model import RidgeCV
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from transfer_learning.transfer_learning.common.utils import load_xyz_to_pyg_batch, ATOMS_TO_GRAPH_KWARGS
-from transfer_learning.transfer_learning.models.distribution_regression import (GaussianKernel,
-                                                                                LinearMeanEmbeddingKernel,
-                                                                                KernelMeanEmbeddingRidgeRegression,
-                                                                                median_heuristic)
+from transfer_learning.transfer_learning.common.utils import (
+    ATOMS_TO_GRAPH_KWARGS,
+    load_xyz_to_pyg_batch,
+)
 from transfer_learning.transfer_learning.loaders import BaseLoader
+from transfer_learning.transfer_learning.models.distribution_regression import (
+    GaussianKernel,
+    KernelMeanEmbeddingRidgeRegression,
+    LinearMeanEmbeddingKernel,
+    median_heuristic,
+)
 
 ### Load checkpoint
 CHECKPOINT_PATH = Path("checkpoints/s2ef_efwt/all/schnet/schnet_all_large.pt")
@@ -52,11 +57,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 fig, ax = plt.subplots(5, 2, figsize=(2 * 3, 5 * 3))
 
 for i, representation_layer in enumerate(range(1, 6)):
-    base_loader = BaseLoader(checkpoint["config"],
-                             representation=True,
-                             representation_kwargs={
-                                 "representation_layer": representation_layer,
-                             })
+    base_loader = BaseLoader(
+        checkpoint["config"],
+        representation=True,
+        representation_kwargs={
+            "representation_layer": representation_layer,
+        },
+    )
     base_loader.load_checkpoint(CHECKPOINT_PATH, strict_load=False)
 
     model = base_loader.model
@@ -81,11 +88,9 @@ fig.savefig("intermediate_representation.png")
 Ds = {}
 # Create figure of distance and kernel matrix gif
 for representation_layer in range(1, 6):
-    base_loader = BaseLoader(checkpoint["config"],
-                             representation=True,
-                             representation_kwargs={
-                                 "representation_layer": representation_layer
-                             })
+    base_loader = BaseLoader(
+        checkpoint["config"], representation=True, representation_kwargs={"representation_layer": representation_layer}
+    )
     base_loader.load_checkpoint(CHECKPOINT_PATH, strict_load=False)
     model = base_loader.model
     model.to(device)
@@ -101,20 +106,22 @@ for representation_layer in range(1, 6):
     Ds[representation_layer] = {"D": D, "D_min": D_min, "D_max": D_max}
 
 fig, ax = plt.subplots(1, 5, figsize=(5 * 3, 3), sharey=True)
-imshows = [ax[i-1].imshow(Ds[i]["D"][0].detach().numpy(), vmin=Ds[i]["D_min"], vmax=Ds[i]["D_max"]) for i in range(1, 6)]
+imshows = [
+    ax[i - 1].imshow(Ds[i]["D"][0].detach().numpy(), vmin=Ds[i]["D_min"], vmax=Ds[i]["D_max"]) for i in range(1, 6)
+]
 Ds[1]["D"].shape
+
 
 def animate(t):
     for representation_layer in range(1, 6):
-        imshows[representation_layer-1].set_data(Ds[representation_layer]["D"][t].detach().numpy())
-        ax[representation_layer-1].set_title(f"D_{representation_layer}, t = {t:>2}")
+        imshows[representation_layer - 1].set_data(Ds[representation_layer]["D"][t].detach().numpy())
+        ax[representation_layer - 1].set_title(f"D_{representation_layer}, t = {t:>2}")
     return imshows
+
 
 ani = animation.FuncAnimation(fig, animate, frames=range(Ds[1]["D"].shape[0]), repeat=True)
 
-writer = animation.PillowWriter(fps=15,
-                                metadata=dict(artist='Me'),
-                                bitrate=1800)
+writer = animation.PillowWriter(fps=15, metadata=dict(artist="Me"), bitrate=1800)
 
 ani.save(f"Ds_in_time.gif", writer=writer)
 
@@ -126,11 +133,9 @@ ridge_scores = []
 dummy_scores = []
 
 for representation_layer in range(1, 6):
-    base_loader = BaseLoader(checkpoint["config"],
-                             representation=True,
-                             representation_kwargs={
-                                 "representation_layer": representation_layer
-                             })
+    base_loader = BaseLoader(
+        checkpoint["config"], representation=True, representation_kwargs={"representation_layer": representation_layer}
+    )
     base_loader.load_checkpoint(CHECKPOINT_PATH, strict_load=False)
     model = base_loader.model
     model.to(device)
@@ -156,11 +161,11 @@ d_std = dummy_scores.std(1)
 fig, ax = plt.subplots(1, 1, figsize=(4, 3))
 
 x = np.arange(1, 6)
-ax.plot(x, r_mean, color="red", label='Ridge Regression MSE')
-ax.fill_between(x, r_mean - r_std, r_mean + r_std, color='red', alpha=0.2)
+ax.plot(x, r_mean, color="red", label="Ridge Regression MSE")
+ax.fill_between(x, r_mean - r_std, r_mean + r_std, color="red", alpha=0.2)
 
-ax.plot(x, d_mean, color="blue", label='Mean Regression MSE')
-ax.fill_between(x, d_mean - d_std, d_mean + d_std, color='blue', alpha=0.2)
+ax.plot(x, d_mean, color="blue", label="Mean Regression MSE")
+ax.fill_between(x, d_mean - d_std, d_mean + d_std, color="blue", alpha=0.2)
 
 ax.set_xlabel("Representation Layer")
 ax.set_ylabel("MSE")
@@ -188,8 +193,9 @@ y = y.reshape(-1, 1).float()
 rcut = 6
 bins = np.linspace(0, rcut, 100)
 sigma = rcut / len(bins)
-g2_params = np.stack([np.ones_like(bins) * (1/(2*sigma**2)), bins]).T
+g2_params = np.stack([np.ones_like(bins) * (1 / (2 * sigma**2)), bins]).T
 acsf = ACSF(species=["Fe", "N"], rcut=rcut, g2_params=g2_params, periodic=True, sparse=False)
+
 
 def create_acsf_features(systems, acsf_object):
     features = []
@@ -197,10 +203,11 @@ def create_acsf_features(systems, acsf_object):
         features.append(acsf_object.create(atoms))
     return torch.tensor(features)
 
+
 acsf_features = create_acsf_features(raw_data, acsf)
 acsf_features = acsf_features.detach().cpu().float()
 fig, ax = plt.subplots(1, 1, figsize=(4, 3))
-ax.plot(bins, acsf_features.mean(0)[:45].mean(0)[102:], label='ACSF', linestyle='--', marker=None)
+ax.plot(bins, acsf_features.mean(0)[:45].mean(0)[102:], label="ACSF", linestyle="--", marker=None)
 fig.savefig("acsf.png")
 dscribe_features = acsf_features
 
@@ -210,11 +217,9 @@ mse_dist_krr = []
 mse_dscribe_krr = []
 mse_dummy = []
 for representation_layer in range(1, 2):
-    base_loader = BaseLoader(checkpoint["config"],
-                             representation=True,
-                             representation_kwargs={
-                                 "representation_layer": representation_layer
-                             })
+    base_loader = BaseLoader(
+        checkpoint["config"], representation=True, representation_kwargs={"representation_layer": representation_layer}
+    )
     base_loader.load_checkpoint(CHECKPOINT_PATH, strict_load=False)
     model = base_loader.model
     model.to(device)
@@ -232,8 +237,7 @@ for representation_layer in range(1, 2):
         phi_train, phi_test = phi[train_idx], phi[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
         # SchNet
-        sigma = median_heuristic(phi_train.reshape(-1, phi_train.shape[-1]),
-                                 phi_train.reshape(-1, phi_train.shape[-1]))
+        sigma = median_heuristic(phi_train.reshape(-1, phi_train.shape[-1]), phi_train.reshape(-1, phi_train.shape[-1]))
         gk.sigma = sigma
         gklme = LinearMeanEmbeddingKernel(gk)
         gkmerr = KernelMeanEmbeddingRidgeRegression(gklme, lmbda=1e-6)
@@ -243,8 +247,9 @@ for representation_layer in range(1, 2):
         mse_dist_krr_temp.append(mean_squared_error(y_test, y_pred))
 
         # DSCRIBE
-        sigma = median_heuristic(dscribe_train.reshape(-1, dscribe_train.shape[-1]),
-                                 dscribe_train.reshape(-1, dscribe_train.shape[-1]))
+        sigma = median_heuristic(
+            dscribe_train.reshape(-1, dscribe_train.shape[-1]), dscribe_train.reshape(-1, dscribe_train.shape[-1])
+        )
         y_mean = y_train.mean()
         gkmerr.fit(dscribe_train, y_train - y_mean)
         y_pred = gkmerr.predict(dscribe_test) + y_mean
@@ -264,12 +269,10 @@ print(f"mean and std (SchNet): {torch.mean(mse_dist_krr):.3f}, {torch.std(mse_di
 fig, ax = plt.subplots(1, 1, figsize=(3, 3))
 mse_dummy = np.array(mse_dummy)
 boxplot_array = np.vstack([mse_dist_krr, mse_dscribe_krr]).T
-ax.boxplot(boxplot_array,
-           labels=["SchNet (layer1)", "DSCRIBE"],
-           showbox=True, showcaps=False)
+ax.boxplot(boxplot_array, labels=["SchNet (layer1)", "DSCRIBE"], showbox=True, showcaps=False)
 ax.set_ylabel("MSE")
 ax.set_title("GKMERR")
-ax.tick_params(axis='x', rotation=-45)
+ax.tick_params(axis="x", rotation=-45)
 ax.set_yscale("log")
 plt.tight_layout()
 fig.savefig("gkmerr_regression.png")

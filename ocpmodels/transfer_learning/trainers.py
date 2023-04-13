@@ -1,17 +1,17 @@
-from pathlib import Path
 import copy
-
 import logging
 import random
+from pathlib import Path
+from pprint import pprint
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from tqdm import tqdm
 import torch_geometric
-from torch_geometric.loader import DataLoader
 from torch_geometric.data import Batch
+from torch_geometric.loader import DataLoader
+from tqdm import tqdm
 
 from ocpmodels.common.utils import save_checkpoint
 from ocpmodels.modules.normalizer import Normalizer
@@ -19,21 +19,19 @@ from ocpmodels.modules.scheduler import LRScheduler
 from ocpmodels.transfer_learning.common.logger import WandBLogger
 from ocpmodels.transfer_learning.common.utils import (
     ATOMS_TO_GRAPH_KWARGS,
-    load_xyz_to_pyg_data,
-    load_xyz_to_pyg_batch,
     aggregate_metric,
-    torch_tensor_to_npy
+    load_xyz_to_pyg_batch,
+    load_xyz_to_pyg_data,
+    torch_tensor_to_npy,
 )
-from .loaders import BaseLoader
 from ocpmodels.transfer_learning.models.distribution_regression import (
     GaussianKernel,
-    LinearMeanEmbeddingKernel,
     KernelMeanEmbeddingRidgeRegression,
+    LinearMeanEmbeddingKernel,
     median_heuristic,
 )
 
-
-from pprint import pprint
+from .loaders import BaseLoader
 
 
 class MEKRRTrainer:
@@ -857,7 +855,11 @@ class GNNTrainer:
         logging.info("Predicting.")
         assert isinstance(
             data_loader,
-            (torch.utils.data.dataloader.DataLoader, torch_geometric.data.Batch, torch_geometric.loader.dataloader.DataLoader),
+            (
+                torch.utils.data.dataloader.DataLoader,
+                torch_geometric.data.Batch,
+                torch_geometric.loader.dataloader.DataLoader,
+            ),
         )
 
         if isinstance(data_loader, torch_geometric.data.Batch):
@@ -894,9 +896,7 @@ class GNNTrainer:
                 "step": self.step,
                 "state_dict": self.model.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
-                "scheduler": self.scheduler.scheduler.state_dict()
-                if self.scheduler.scheduler_type != "Null"
-                else None,
+                "scheduler": self.scheduler.scheduler.state_dict() if self.scheduler.scheduler_type != "Null" else None,
                 "normalizers": {key: value.state_dict() for key, value in self.normalizers.items()},
                 "config": self.config,
                 "val_metrics": metrics,
@@ -932,4 +932,3 @@ class GNNTrainer:
             )
             return ckpt_path
         return None
-

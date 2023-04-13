@@ -4,9 +4,7 @@ from pathlib import Path
 
 class Flags:
     def __init__(self):
-        self.parser = argparse.ArgumentParser(
-            description="Graph Networks for Electrocatalyst Design"
-        )
+        self.parser = argparse.ArgumentParser(description="Graph Networks for Electrocatalyst Design")
         self.add_core_args()
 
     def get_parser(self):
@@ -43,9 +41,7 @@ class Flags:
             type=int,
             help="Log every N iterations (default: 10)",
         )
-        self.parser.add_argument(
-            "--seed", default=0, type=int, help="Seed for torch, cuda, numpy"
-        )
+        self.parser.add_argument("--seed", default=0, type=int, help="Seed for torch, cuda, numpy")
         # self.parser.add_argument(
         #     "--amp", action="store_true", help="Use mixed-precision training"
         # )
@@ -55,9 +51,7 @@ class Flags:
         # self.parser.add_argument(
         #     "--logdir", default="logs", type=Path, help="Where to store logs"
         # )
-        self.parser.add_argument(
-            "--cpu", action="store_true", help="Run CPU only training"
-        )
+        self.parser.add_argument("--cpu", action="store_true", help="Run CPU only training")
 
 
 flags = Flags()

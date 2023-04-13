@@ -112,9 +112,7 @@ class PaiNN(BaseModel):
         self.update_layers = nn.ModuleList()
 
         for i in range(num_layers):
-            self.message_layers.append(
-                PaiNNMessage(hidden_channels, num_rbf).jittable()
-            )
+            self.message_layers.append(PaiNNMessage(hidden_channels, num_rbf).jittable())
             self.update_layers.append(PaiNNUpdate(hidden_channels))
             setattr(self, "upd_out_scalar_scale_%d" % i, ScaleFactor())
 
@@ -184,12 +182,8 @@ class PaiNN(BaseModel):
             )
 
             # Filter for unique edges
-            edge_ids = get_edge_id(
-                edge_index_bothdir, cell_offsets_bothdir, num_atoms
-            )
-            unique_ids, unique_inv = torch.unique(
-                edge_ids, return_inverse=True
-            )
+            edge_ids = get_edge_id(edge_index_bothdir, cell_offsets_bothdir, num_atoms)
+            unique_ids, unique_inv = torch.unique(edge_ids, return_inverse=True)
             perm = torch.arange(
                 unique_inv.size(0),
                 dtype=unique_inv.dtype,
@@ -211,24 +205,16 @@ class PaiNN(BaseModel):
 
             # Subindex remaining tensors
             cell_offsets_new = cell_offsets_bothdir[unique_idx]
-            reorder_tensors = [
-                self.symmetrize_tensor(tensor, unique_idx, False)
-                for tensor in reorder_tensors
-            ]
+            reorder_tensors = [self.symmetrize_tensor(tensor, unique_idx, False) for tensor in reorder_tensors]
             reorder_tensors_invneg = [
-                self.symmetrize_tensor(tensor, unique_idx, True)
-                for tensor in reorder_tensors_invneg
+                self.symmetrize_tensor(tensor, unique_idx, True) for tensor in reorder_tensors_invneg
             ]
 
             # Count edges per image
             # segment_coo assumes sorted edge_index_new[1] and batch_idx
             ones = edge_index_new.new_ones(1).expand_as(edge_index_new[1])
-            neighbors_per_atom = segment_coo(
-                ones, edge_index_new[1], dim_size=num_atoms
-            )
-            neighbors_per_image = segment_coo(
-                neighbors_per_atom, batch_idx, dim_size=neighbors.shape[0]
-            )
+            neighbors_per_atom = segment_coo(ones, edge_index_new[1], dim_size=num_atoms)
+            neighbors_per_image = segment_coo(neighbors_per_atom, batch_idx, dim_size=neighbors.shape[0])
         else:
             # Generate mask
             mask_sep_atoms = edge_index[0] < edge_index[1]
@@ -236,20 +222,14 @@ class PaiNN(BaseModel):
             cell_earlier = (
                 (cell_offsets[:, 0] < 0)
                 | ((cell_offsets[:, 0] == 0) & (cell_offsets[:, 1] < 0))
-                | (
-                    (cell_offsets[:, 0] == 0)
-                    & (cell_offsets[:, 1] == 0)
-                    & (cell_offsets[:, 2] < 0)
-                )
+                | ((cell_offsets[:, 0] == 0) & (cell_offsets[:, 1] == 0) & (cell_offsets[:, 2] < 0))
             )
             mask_same_atoms = edge_index[0] == edge_index[1]
             mask_same_atoms &= cell_earlier
             mask = mask_sep_atoms | mask_same_atoms
 
             # Mask out counter-edges
-            edge_index_new = edge_index[mask[None, :].expand(2, -1)].view(
-                2, -1
-            )
+            edge_index_new = edge_index[mask[None, :].expand(2, -1)].view(2, -1)
 
             # Concatenate counter-edges after normal edges
             edge_index_cat = torch.cat(
@@ -266,9 +246,7 @@ class PaiNN(BaseModel):
             # segment_coo assumes sorted batch_edge
             # Factor 2 since this is only one half of the edges
             ones = batch_edge.new_ones(1).expand_as(batch_edge)
-            neighbors_per_image = 2 * segment_coo(
-                ones, batch_edge, dim_size=neighbors.size(0)
-            )
+            neighbors_per_image = 2 * segment_coo(ones, batch_edge, dim_size=neighbors.size(0))
 
             # Create indexing array
             edge_reorder_idx = repeat_blocks(
@@ -280,20 +258,12 @@ class PaiNN(BaseModel):
 
             # Reorder everything so the edges of every image are consecutive
             edge_index_new = edge_index_cat[:, edge_reorder_idx]
-            cell_offsets_new = self.select_symmetric_edges(
-                cell_offsets, mask, edge_reorder_idx, True
-            )
+            cell_offsets_new = self.select_symmetric_edges(cell_offsets, mask, edge_reorder_idx, True)
             reorder_tensors = [
-                self.select_symmetric_edges(
-                    tensor, mask, edge_reorder_idx, False
-                )
-                for tensor in reorder_tensors
+                self.select_symmetric_edges(tensor, mask, edge_reorder_idx, False) for tensor in reorder_tensors
             ]
             reorder_tensors_invneg = [
-                self.select_symmetric_edges(
-                    tensor, mask, edge_reorder_idx, True
-                )
-                for tensor in reorder_tensors_invneg
+                self.select_symmetric_edges(tensor, mask, edge_reorder_idx, True) for tensor in reorder_tensors_invneg
             ]
 
         # Indices for swapping c->a and a->c (for symmetric MP)
@@ -305,9 +275,7 @@ class PaiNN(BaseModel):
         edge_ids = get_edge_id(edge_index_new, cell_offsets_new, num_atoms)
         order_edge_ids = torch.argsort(edge_ids)
         inv_order_edge_ids = torch.argsort(order_edge_ids)
-        edge_ids_counter = get_edge_id(
-            edge_index_new.flip(0), -cell_offsets_new, num_atoms
-        )
+        edge_ids_counter = get_edge_id(edge_index_new.flip(0), -cell_offsets_new, num_atoms)
         order_edge_ids_counter = torch.argsort(edge_ids_counter)
         id_swap = order_edge_ids_counter[inv_order_edge_ids]
 
@@ -396,9 +364,7 @@ class PaiNN(BaseModel):
         #### Interaction blocks ###############################################
 
         for i in range(self.num_layers):
-            dx, dvec = self.message_layers[i](
-                x, vec, edge_index, edge_rbf, edge_vector
-            )
+            dx, dvec = self.message_layers[i](x, vec, edge_index, edge_rbf, edge_vector)
 
             x = x + dx
             vec = vec + dvec
@@ -519,9 +485,7 @@ class PaiNNMessage(MessagePassing):
         vec = scatter(vec, index, dim=self.node_dim, dim_size=dim_size)
         return x, vec
 
-    def update(
-        self, inputs: Tuple[torch.Tensor, torch.Tensor]
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def update(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         return inputs
 
 
@@ -530,9 +494,7 @@ class PaiNNUpdate(nn.Module):
         super().__init__()
         self.hidden_channels = hidden_channels
 
-        self.vec_proj = nn.Linear(
-            hidden_channels, hidden_channels * 2, bias=False
-        )
+        self.vec_proj = nn.Linear(hidden_channels, hidden_channels * 2, bias=False)
         self.xvec_proj = nn.Sequential(
             nn.Linear(hidden_channels * 2, hidden_channels),
             ScaledSiLU(),
@@ -552,21 +514,13 @@ class PaiNNUpdate(nn.Module):
         self.xvec_proj[2].bias.data.fill_(0)
 
     def forward(self, x, vec):
-        vec1, vec2 = torch.split(
-            self.vec_proj(vec), self.hidden_channels, dim=-1
-        )
+        vec1, vec2 = torch.split(self.vec_proj(vec), self.hidden_channels, dim=-1)
         vec_dot = (vec1 * vec2).sum(dim=1) * self.inv_sqrt_h
 
         # NOTE: Can't use torch.norm because the gradient is NaN for input = 0.
         # Add an epsilon offset to make sure sqrt is always positive.
-        x_vec_h = self.xvec_proj(
-            torch.cat(
-                [x, torch.sqrt(torch.sum(vec2**2, dim=-2) + 1e-8)], dim=-1
-            )
-        )
-        xvec1, xvec2, xvec3 = torch.split(
-            x_vec_h, self.hidden_channels, dim=-1
-        )
+        x_vec_h = self.xvec_proj(torch.cat([x, torch.sqrt(torch.sum(vec2**2, dim=-2) + 1e-8)], dim=-1))
+        xvec1, xvec2, xvec3 = torch.split(x_vec_h, self.hidden_channels, dim=-1)
 
         dx = xvec1 + xvec2 * vec_dot
         dx = dx * self.inv_sqrt_2
@@ -617,9 +571,7 @@ class GatedEquivariantBlock(nn.Module):
         super(GatedEquivariantBlock, self).__init__()
         self.out_channels = out_channels
 
-        self.vec1_proj = nn.Linear(
-            hidden_channels, hidden_channels, bias=False
-        )
+        self.vec1_proj = nn.Linear(hidden_channels, hidden_channels, bias=False)
         self.vec2_proj = nn.Linear(hidden_channels, out_channels, bias=False)
 
         self.update_net = nn.Sequential(

@@ -8,9 +8,9 @@ import logging
 from abc import ABC, abstractmethod
 
 import torch
-import wandb
 from torch.utils.tensorboard import SummaryWriter
 
+import wandb
 from ocpmodels.common.registry import registry
 
 
@@ -54,11 +54,7 @@ class Logger(ABC):
 class WandBLogger(Logger):
     def __init__(self, config):
         super().__init__(config)
-        project = (
-            self.config["logger"].get("project", None)
-            if isinstance(self.config["logger"], dict)
-            else None
-        )
+        project = self.config["logger"].get("project", None) if isinstance(self.config["logger"], dict) else None
 
         wandb.init(
             config=self.config,
@@ -93,9 +89,7 @@ class TensorboardLogger(Logger):
 
     # TODO: add a model hook for watching gradients.
     def watch(self, model):
-        logging.warning(
-            "Model gradient logging to tensorboard not yet supported."
-        )
+        logging.warning("Model gradient logging to tensorboard not yet supported.")
         return False
 
     def log(self, update_dict, step=None, split=""):
@@ -104,9 +98,7 @@ class TensorboardLogger(Logger):
             if torch.is_tensor(update_dict[key]):
                 self.writer.add_scalar(key, update_dict[key].item(), step)
             else:
-                assert isinstance(update_dict[key], int) or isinstance(
-                    update_dict[key], float
-                )
+                assert isinstance(update_dict[key], int) or isinstance(update_dict[key], float)
                 self.writer.add_scalar(key, update_dict[key], step)
 
     def mark_preempting(self):

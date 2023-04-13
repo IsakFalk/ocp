@@ -12,16 +12,18 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from torch_geometric.data import Batch
 
-from transfer_learning.transfer_learning.common.utils import load_xyz_to_pyg_batch, ATOMS_TO_GRAPH_KWARGS
 from ocpmodels.transfer_learning.loaders import BaseLoader
+from transfer_learning.transfer_learning.common.utils import (
+    ATOMS_TO_GRAPH_KWARGS,
+    load_xyz_to_pyg_batch,
+)
 from transfer_learning.transfer_learning.models.distribution_regression import (
     GaussianKernel,
-    LinearMeanEmbeddingKernel,
     KernelMeanEmbeddingRidgeRegression,
-    median_heuristic,
+    LinearMeanEmbeddingKernel,
     StandardizedOutputRegression,
+    median_heuristic,
 )
-
 
 ### Load checkpoint
 CHECKPOINT_PATH = Path("checkpoints/s2ef_efwt/all/schnet/schnet_all_large.pt")

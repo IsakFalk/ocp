@@ -92,9 +92,7 @@ class eSCN(BaseModel):
         import sys
 
         if "e3nn" not in sys.modules:
-            logging.error(
-                "You need to install the e3nn library to use the SCN model"
-            )
+            logging.error("You need to install the e3nn library to use the SCN model")
             raise ImportError
 
         self.regress_forces = regress_forces
@@ -127,9 +125,7 @@ class eSCN(BaseModel):
         self.act = nn.SiLU()
 
         # Weights for message initialization
-        self.sphere_embedding = nn.Embedding(
-            self.max_num_elements, self.sphere_channels_all
-        )
+        self.sphere_embedding = nn.Embedding(self.max_num_elements, self.sphere_channels_all)
 
         # Initialize the function used to measure the distances between atoms
         assert self.distance_function in [
@@ -195,18 +191,12 @@ class eSCN(BaseModel):
             self.layer_blocks.append(block)
 
         # Output blocks for energy and forces
-        self.energy_block = EnergyBlock(
-            self.sphere_channels_all, self.num_sphere_samples, self.act
-        )
+        self.energy_block = EnergyBlock(self.sphere_channels_all, self.num_sphere_samples, self.act)
         if self.regress_forces:
-            self.force_block = ForceBlock(
-                self.sphere_channels_all, self.num_sphere_samples, self.act
-            )
+            self.force_block = ForceBlock(self.sphere_channels_all, self.num_sphere_samples, self.act)
 
         # Create a roughly evenly distributed point sampling of the sphere for the output blocks
-        self.sphere_points = nn.Parameter(
-            CalcSpherePoints(self.num_sphere_samples), requires_grad=False
-        )
+        self.sphere_points = nn.Parameter(CalcSpherePoints(self.num_sphere_samples), requires_grad=False)
 
         # For each spherical point, compute the spherical harmonic coefficient weights
         self.sphharm_weights = []
@@ -247,16 +237,12 @@ class eSCN(BaseModel):
         ###############################################################
 
         # Compute 3x3 rotation matrix per edge
-        edge_rot_mat = self._init_edge_rot_mat(
-            data, edge_index, edge_distance_vec
-        )
+        edge_rot_mat = self._init_edge_rot_mat(data, edge_index, edge_distance_vec)
 
         # Initialize the WignerD matrices and other values for spherical harmonic calculations
         self.SO3_edge_rot = nn.ModuleList()
         for i in range(self.num_resolutions):
-            self.SO3_edge_rot.append(
-                SO3_Rotation(edge_rot_mat, self.lmax_list[i])
-            )
+            self.SO3_edge_rot.append(SO3_Rotation(edge_rot_mat, self.lmax_list[i]))
 
         ###############################################################
         # Initialize node embeddings
@@ -276,16 +262,14 @@ class eSCN(BaseModel):
         offset = 0
         # Initialize the l=0,m=0 coefficients for each resolution
         for i in range(self.num_resolutions):
-            x.embedding[:, offset_res, :] = self.sphere_embedding(
-                atomic_numbers
-            )[:, offset : offset + self.sphere_channels]
+            x.embedding[:, offset_res, :] = self.sphere_embedding(atomic_numbers)[
+                :, offset : offset + self.sphere_channels
+            ]
             offset = offset + self.sphere_channels
             offset_res = offset_res + int((self.lmax_list[i] + 1) ** 2)
 
         # This can be expensive to compute (not implemented efficiently), so only do it once and pass it along to each layer
-        mappingReduced = CoefficientMapping(
-            self.lmax_list, self.mmax_list, self.device
-        )
+        mappingReduced = CoefficientMapping(self.lmax_list, self.mmax_list, self.device)
 
         ###############################################################
         # Update spherical node embeddings
@@ -378,11 +362,7 @@ class eSCN(BaseModel):
 
         # Make sure the atoms are far enough apart
         if torch.min(edge_vec_0_distance) < 0.0001:
-            print(
-                "Error edge_vec_0_distance: {}".format(
-                    torch.min(edge_vec_0_distance)
-                )
-            )
+            print("Error edge_vec_0_distance: {}".format(torch.min(edge_vec_0_distance)))
             (minval, minidx) = torch.min(edge_vec_0_distance, 0)
             print(
                 "Error edge_vec_0_distance: {} {} {} {} {}".format(
@@ -397,9 +377,7 @@ class eSCN(BaseModel):
         norm_x = edge_vec_0 / (edge_vec_0_distance.view(-1, 1))
 
         edge_vec_2 = torch.rand_like(edge_vec_0) - 0.5
-        edge_vec_2 = edge_vec_2 / (
-            torch.sqrt(torch.sum(edge_vec_2**2, dim=1)).view(-1, 1)
-        )
+        edge_vec_2 = edge_vec_2 / (torch.sqrt(torch.sum(edge_vec_2**2, dim=1)).view(-1, 1))
         # Create two rotated copys of the random vectors in case the random vector is aligned with norm_x
         # With two 90 degree rotated vectors, at least one should not be aligned with norm_x
         edge_vec_2b = edge_vec_2.clone()
@@ -408,37 +386,23 @@ class eSCN(BaseModel):
         edge_vec_2c = edge_vec_2.clone()
         edge_vec_2c[:, 1] = -edge_vec_2[:, 2]
         edge_vec_2c[:, 2] = edge_vec_2[:, 1]
-        vec_dot_b = torch.abs(torch.sum(edge_vec_2b * norm_x, dim=1)).view(
-            -1, 1
-        )
-        vec_dot_c = torch.abs(torch.sum(edge_vec_2c * norm_x, dim=1)).view(
-            -1, 1
-        )
+        vec_dot_b = torch.abs(torch.sum(edge_vec_2b * norm_x, dim=1)).view(-1, 1)
+        vec_dot_c = torch.abs(torch.sum(edge_vec_2c * norm_x, dim=1)).view(-1, 1)
 
         vec_dot = torch.abs(torch.sum(edge_vec_2 * norm_x, dim=1)).view(-1, 1)
-        edge_vec_2 = torch.where(
-            torch.gt(vec_dot, vec_dot_b), edge_vec_2b, edge_vec_2
-        )
+        edge_vec_2 = torch.where(torch.gt(vec_dot, vec_dot_b), edge_vec_2b, edge_vec_2)
         vec_dot = torch.abs(torch.sum(edge_vec_2 * norm_x, dim=1)).view(-1, 1)
-        edge_vec_2 = torch.where(
-            torch.gt(vec_dot, vec_dot_c), edge_vec_2c, edge_vec_2
-        )
+        edge_vec_2 = torch.where(torch.gt(vec_dot, vec_dot_c), edge_vec_2c, edge_vec_2)
 
         vec_dot = torch.abs(torch.sum(edge_vec_2 * norm_x, dim=1))
         # Check the vectors aren't aligned
         assert torch.max(vec_dot) < 0.99
 
         norm_z = torch.cross(norm_x, edge_vec_2, dim=1)
-        norm_z = norm_z / (
-            torch.sqrt(torch.sum(norm_z**2, dim=1, keepdim=True))
-        )
-        norm_z = norm_z / (
-            torch.sqrt(torch.sum(norm_z**2, dim=1)).view(-1, 1)
-        )
+        norm_z = norm_z / (torch.sqrt(torch.sum(norm_z**2, dim=1, keepdim=True)))
+        norm_z = norm_z / (torch.sqrt(torch.sum(norm_z**2, dim=1)).view(-1, 1))
         norm_y = torch.cross(norm_x, norm_z, dim=1)
-        norm_y = norm_y / (
-            torch.sqrt(torch.sum(norm_y**2, dim=1, keepdim=True))
-        )
+        norm_y = norm_y / (torch.sqrt(torch.sum(norm_y**2, dim=1, keepdim=True)))
 
         # Construct the 3D rotation matrix
         norm_x = norm_x.view(-1, 3, 1)
@@ -510,17 +474,11 @@ class LayerBlock(torch.nn.Module):
         )
 
         # Non-linear point-wise comvolution for the aggregated messages
-        self.fc1_sphere = nn.Linear(
-            2 * self.sphere_channels_all, self.sphere_channels_all, bias=False
-        )
+        self.fc1_sphere = nn.Linear(2 * self.sphere_channels_all, self.sphere_channels_all, bias=False)
 
-        self.fc2_sphere = nn.Linear(
-            self.sphere_channels_all, self.sphere_channels_all, bias=False
-        )
+        self.fc2_sphere = nn.Linear(self.sphere_channels_all, self.sphere_channels_all, bias=False)
 
-        self.fc3_sphere = nn.Linear(
-            self.sphere_channels_all, self.sphere_channels_all, bias=False
-        )
+        self.fc3_sphere = nn.Linear(self.sphere_channels_all, self.sphere_channels_all, bias=False)
 
     def forward(
         self,
@@ -531,7 +489,6 @@ class LayerBlock(torch.nn.Module):
         SO3_edge_rot,
         mappingReduced,
     ):
-
         # Compute messages by performing message block
         x_message = self.message_block(
             x,
@@ -712,18 +669,12 @@ class SO2Block(torch.nn.Module):
         num_channels_m0 = 0
         for i in range(self.num_resolutions):
             num_coefficents = self.lmax_list[i] + 1
-            num_channels_m0 = (
-                num_channels_m0 + num_coefficents * self.sphere_channels
-            )
+            num_channels_m0 = num_channels_m0 + num_coefficents * self.sphere_channels
 
         # SO(2) convolution for m=0
         self.fc1_dist0 = nn.Linear(edge_channels, self.hidden_channels)
-        self.fc1_m0 = nn.Linear(
-            num_channels_m0, self.hidden_channels, bias=False
-        )
-        self.fc2_m0 = nn.Linear(
-            self.hidden_channels, num_channels_m0, bias=False
-        )
+        self.fc1_m0 = nn.Linear(num_channels_m0, self.hidden_channels, bias=False)
+        self.fc2_m0 = nn.Linear(self.hidden_channels, num_channels_m0, bias=False)
 
         # SO(2) convolution for non-zero m
         self.so2_conv = nn.ModuleList()
@@ -745,7 +696,6 @@ class SO2Block(torch.nn.Module):
         x_edge,
         mappingReduced,
     ):
-
         num_edges = len(x_edge)
 
         # Reshape the spherical harmonics based on m (order)
@@ -771,16 +721,12 @@ class SO2Block(torch.nn.Module):
         offset = mappingReduced.m_size[0]
         for m in range(1, max(self.mmax_list) + 1):
             # Get the m order coefficients
-            x_m = x.embedding[
-                :, offset : offset + 2 * mappingReduced.m_size[m]
-            ].contiguous()
+            x_m = x.embedding[:, offset : offset + 2 * mappingReduced.m_size[m]].contiguous()
             x_m = x_m.view(num_edges, 2, -1)
             # Perform SO(2) convolution
             x_m = self.so2_conv[m - 1](x_m, x_edge)
             x_m = x_m.view(num_edges, -1, x.num_channels)
-            x.embedding[
-                :, offset : offset + 2 * mappingReduced.m_size[m]
-            ] = x_m
+            x.embedding[:, offset : offset + 2 * mappingReduced.m_size[m]] = x_m
 
             offset = offset + 2 * mappingReduced.m_size[m]
 
@@ -829,9 +775,7 @@ class SO2Conv(torch.nn.Module):
             if self.mmax_list[i] >= m:
                 num_coefficents = self.lmax_list[i] - m + 1
 
-            num_channels = (
-                num_channels + num_coefficents * self.sphere_channels
-            )
+            num_channels = num_channels + num_coefficents * self.sphere_channels
 
         assert num_channels > 0
 
@@ -895,12 +839,8 @@ class EdgeBlock(torch.nn.Module):
         self.fc1_dist = nn.Linear(self.in_channels, self.edge_channels)
 
         # Embedding function of the atomic numbers
-        self.source_embedding = nn.Embedding(
-            self.max_num_elements, self.edge_channels
-        )
-        self.target_embedding = nn.Embedding(
-            self.max_num_elements, self.edge_channels
-        )
+        self.source_embedding = nn.Embedding(self.max_num_elements, self.edge_channels)
+        self.target_embedding = nn.Embedding(self.max_num_elements, self.edge_channels)
         nn.init.uniform_(self.source_embedding.weight.data, -0.001, 0.001)
         nn.init.uniform_(self.target_embedding.weight.data, -0.001, 0.001)
 
@@ -911,7 +851,6 @@ class EdgeBlock(torch.nn.Module):
         )
 
     def forward(self, edge_distance, source_element, target_element):
-
         # Compute distance embedding
         x_dist = self.distance_expansion(edge_distance)
         x_dist = self.fc1_dist(x_dist)

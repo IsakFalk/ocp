@@ -102,9 +102,7 @@ class EnergyTrainer(BaseTrainer):
         self.num_targets = 1
 
     @torch.no_grad()
-    def predict(
-        self, loader, per_image=True, results_file=None, disable_tqdm=False
-    ):
+    def predict(self, loader, per_image=True, results_file=None, disable_tqdm=False):
         ensure_fitted(self._unwrapped_model)
 
         if distutils.is_master() and not disable_tqdm:
@@ -141,17 +139,11 @@ class EnergyTrainer(BaseTrainer):
                 out = self._forward(batch)
 
             if self.normalizers is not None and "target" in self.normalizers:
-                out["energy"] = self.normalizers["target"].denorm(
-                    out["energy"]
-                )
+                out["energy"] = self.normalizers["target"].denorm(out["energy"])
 
             if per_image:
-                predictions["id"].extend(
-                    [str(i) for i in batch[0].sid.tolist()]
-                )
-                predictions["energy"].extend(
-                    out["energy"].cpu().detach().numpy()
-                )
+                predictions["id"].extend([str(i) for i in batch[0].sid.tolist()])
+                predictions["energy"].extend(out["energy"].cpu().detach().numpy())
             else:
                 predictions["energy"] = out["energy"].detach()
                 return predictions
@@ -166,21 +158,15 @@ class EnergyTrainer(BaseTrainer):
     def train(self, disable_eval_tqdm=False):
         ensure_fitted(self._unwrapped_model, warn=True)
 
-        eval_every = self.config["optim"].get(
-            "eval_every", len(self.train_loader)
-        )
-        primary_metric = self.config["task"].get(
-            "primary_metric", self.evaluator.task_primary_metric[self.name]
-        )
+        eval_every = self.config["optim"].get("eval_every", len(self.train_loader))
+        primary_metric = self.config["task"].get("primary_metric", self.evaluator.task_primary_metric[self.name])
         self.best_val_metric = 1e9
 
         # Calculate start_epoch from step instead of loading the epoch number
         # to prevent inconsistencies due to different batch size in checkpoint.
         start_epoch = self.step // len(self.train_loader)
 
-        for epoch_int in range(
-            start_epoch, self.config["optim"]["max_epochs"]
-        ):
+        for epoch_int in range(start_epoch, self.config["optim"]["max_epochs"]):
             self.train_sampler.set_epoch(epoch_int)
             skip_steps = self.step % len(self.train_loader)
             train_loader_iter = iter(self.train_loader)
@@ -208,9 +194,7 @@ class EnergyTrainer(BaseTrainer):
                     self.evaluator,
                     metrics={},
                 )
-                self.metrics = self.evaluator.update(
-                    "loss", loss.item() / scale, self.metrics
-                )
+                self.metrics = self.evaluator.update("loss", loss.item() / scale, self.metrics)
 
                 # Log metrics.
                 log_dict = {k: self.metrics[k]["metric"] for k in self.metrics}
@@ -221,14 +205,8 @@ class EnergyTrainer(BaseTrainer):
                         "step": self.step,
                     }
                 )
-                if (
-                    self.step % self.config["cmd"]["print_every"] == 0
-                    and distutils.is_master()
-                    and not self.is_hpo
-                ):
-                    log_str = [
-                        "{}: {:.2e}".format(k, v) for k, v in log_dict.items()
-                    ]
+                if self.step % self.config["cmd"]["print_every"] == 0 and distutils.is_master() and not self.is_hpo:
+                    log_str = ["{}: {:.2e}".format(k, v) for k, v in log_dict.items()]
                     print(", ".join(log_str))
                     self.metrics = {}
 
@@ -241,24 +219,15 @@ class EnergyTrainer(BaseTrainer):
 
                 # Evaluate on val set after every `eval_every` iterations.
                 if self.step % eval_every == 0:
-                    self.save(
-                        checkpoint_file="checkpoint.pt", training_state=True
-                    )
+                    self.save(checkpoint_file="checkpoint.pt", training_state=True)
 
                     if self.val_loader is not None:
                         val_metrics = self.validate(
                             split="val",
                             disable_tqdm=disable_eval_tqdm,
                         )
-                        if (
-                            val_metrics[
-                                self.evaluator.task_primary_metric[self.name]
-                            ]["metric"]
-                            < self.best_val_metric
-                        ):
-                            self.best_val_metric = val_metrics[
-                                self.evaluator.task_primary_metric[self.name]
-                            ]["metric"]
+                        if val_metrics[self.evaluator.task_primary_metric[self.name]]["metric"] < self.best_val_metric:
+                            self.best_val_metric = val_metrics[self.evaluator.task_primary_metric[self.name]]["metric"]
                             self.save(
                                 metrics=val_metrics,
                                 checkpoint_file="best_checkpoint.pt",
@@ -306,9 +275,7 @@ class EnergyTrainer(BaseTrainer):
         }
 
     def _compute_loss(self, out, batch_list):
-        energy_target = torch.cat(
-            [batch.y_relaxed.to(self.device) for batch in batch_list], dim=0
-        )
+        energy_target = torch.cat([batch.y_relaxed.to(self.device) for batch in batch_list], dim=0)
 
         if self.normalizer.get("normalize_labels", False):
             target_normed = self.normalizers["target"].norm(energy_target)
@@ -319,9 +286,7 @@ class EnergyTrainer(BaseTrainer):
         return loss
 
     def _compute_metrics(self, out, batch_list, evaluator, metrics={}):
-        energy_target = torch.cat(
-            [batch.y_relaxed.to(self.device) for batch in batch_list], dim=0
-        )
+        energy_target = torch.cat([batch.y_relaxed.to(self.device) for batch in batch_list], dim=0)
 
         if self.normalizer.get("normalize_labels", False):
             out["energy"] = self.normalizers["target"].denorm(out["energy"])

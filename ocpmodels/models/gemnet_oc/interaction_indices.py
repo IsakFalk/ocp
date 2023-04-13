@@ -119,9 +119,7 @@ def get_mixed_triplets(
     idx_in_s, idx_in_t = graph_in["edge_index"]
     num_edges = idx_out_s.size(0)
 
-    value_in = torch.arange(
-        idx_in_s.size(0), device=idx_in_s.device, dtype=idx_in_s.dtype
-    )
+    value_in = torch.arange(idx_in_s.size(0), device=idx_in_s.device, dtype=idx_in_s.dtype)
     # This exploits that SparseTensor can have multiple copies of the same edge!
     adj_in = SparseTensor(
         row=idx_in_t,
@@ -143,18 +141,12 @@ def get_mixed_triplets(
     if to_outedge:
         idx_atom_in = idx_in_s[idx_in]
         idx_atom_out = idx_out_t[idx_out]
-        cell_offsets_sum = (
-            graph_out["cell_offset"][idx_out] + graph_in["cell_offset"][idx_in]
-        )
+        cell_offsets_sum = graph_out["cell_offset"][idx_out] + graph_in["cell_offset"][idx_in]
     else:
         idx_atom_in = idx_in_s[idx_in]
         idx_atom_out = idx_out_s[idx_out]
-        cell_offsets_sum = (
-            graph_out["cell_offset"][idx_out] - graph_in["cell_offset"][idx_in]
-        )
-    mask = (idx_atom_in != idx_atom_out) | torch.any(
-        cell_offsets_sum != 0, dim=-1
-    )
+        cell_offsets_sum = graph_out["cell_offset"][idx_out] - graph_in["cell_offset"][idx_in]
+    mask = (idx_atom_in != idx_atom_out) | torch.any(cell_offsets_sum != 0, dim=-1)
 
     idx = {}
     if return_adj:
@@ -243,22 +235,12 @@ def get_quadruplets(
     # ---------------- Quadruplets -----------------
     # Repeat indices by counting the number of input triplets per
     # intermediate edge ba. segment_coo assumes sorted idx['triplet_in']['out']
-    ones = (
-        idx["triplet_in"]["out"]
-        .new_ones(1)
-        .expand_as(idx["triplet_in"]["out"])
-    )
-    num_trip_in_per_inter = segment_coo(
-        ones, idx["triplet_in"]["out"], dim_size=idx_qint_s.size(0)
-    )
+    ones = idx["triplet_in"]["out"].new_ones(1).expand_as(idx["triplet_in"]["out"])
+    num_trip_in_per_inter = segment_coo(ones, idx["triplet_in"]["out"], dim_size=idx_qint_s.size(0))
 
     num_trip_out_per_inter = num_trip_in_per_inter[idx["triplet_out"]["in"]]
-    idx["out"] = torch.repeat_interleave(
-        idx["triplet_out"]["out"], num_trip_out_per_inter
-    )
-    idx_inter = torch.repeat_interleave(
-        idx["triplet_out"]["in"], num_trip_out_per_inter
-    )
+    idx["out"] = torch.repeat_interleave(idx["triplet_out"]["out"], num_trip_out_per_inter)
+    idx_inter = torch.repeat_interleave(idx["triplet_out"]["in"], num_trip_out_per_inter)
     idx["trip_out_to_quad"] = torch.repeat_interleave(
         torch.arange(
             len(idx["triplet_out"]["out"]),
@@ -278,9 +260,7 @@ def get_quadruplets(
         ),
         layout="coo",
     )
-    adj_trip_in_per_trip_out = idx["triplet_in"]["adj_edges"][
-        idx["triplet_out"]["in"]
-    ]
+    adj_trip_in_per_trip_out = idx["triplet_in"]["adj_edges"][idx["triplet_out"]["in"]]
     # Rows in adj_trip_in_per_trip_out are intermediate edges ba
     idx["trip_in_to_quad"] = adj_trip_in_per_trip_out.storage.value()
     idx_in = idx["triplet_in"]["in"][idx["trip_in_to_quad"]]
@@ -292,13 +272,9 @@ def get_quadruplets(
     idx_atom_d = idx_s[idx_in]
 
     cell_offset_cd = (
-        main_graph["cell_offset"][idx_in]
-        + qint_graph["cell_offset"][idx_inter]
-        - main_graph["cell_offset"][idx["out"]]
+        main_graph["cell_offset"][idx_in] + qint_graph["cell_offset"][idx_inter] - main_graph["cell_offset"][idx["out"]]
     )
-    mask_cd = (idx_atom_c != idx_atom_d) | torch.any(
-        cell_offset_cd != 0, dim=-1
-    )
+    mask_cd = (idx_atom_c != idx_atom_d) | torch.any(cell_offset_cd != 0, dim=-1)
 
     idx["out"] = idx["out"][mask_cd]
     idx["trip_out_to_quad"] = idx["trip_out_to_quad"][mask_cd]

@@ -185,9 +185,7 @@ class GemNetT(BaseModel):
             activation=None,
             bias=False,
         )
-        self.mlp_cbf3 = EfficientInteractionDownProjection(
-            num_spherical, num_radial, emb_size_cbf
-        )
+        self.mlp_cbf3 = EfficientInteractionDownProjection(num_spherical, num_radial, emb_size_cbf)
 
         # Share the dense Layer of the atom embedding block accross the interaction blocks
         self.mlp_rbf_h = Dense(
@@ -206,9 +204,7 @@ class GemNetT(BaseModel):
 
         # Embedding block
         self.atom_emb = AtomEmbedding(emb_size_atom, num_elements)
-        self.edge_emb = EdgeEmbedding(
-            emb_size_atom, num_radial, emb_size_edge, activation=activation
-        )
+        self.edge_emb = EdgeEmbedding(emb_size_atom, num_radial, emb_size_edge, activation=activation)
 
         out_blocks = []
         int_blocks = []
@@ -276,9 +272,7 @@ class GemNetT(BaseModel):
         """
         idx_s, idx_t = edge_index  # c->a (source=c, target=a)
 
-        value = torch.arange(
-            idx_s.size(0), device=idx_s.device, dtype=idx_s.dtype
-        )
+        value = torch.arange(idx_s.size(0), device=idx_s.device, dtype=idx_s.dtype)
         # Possibly contains multiple copies of the same edge (for periodic interactions)
         adj = SparseTensor(
             row=idx_t,
@@ -315,9 +309,7 @@ class GemNetT(BaseModel):
         tensor_ordered = tensor_cat[reorder_idx]
         return tensor_ordered
 
-    def reorder_symmetric_edges(
-        self, edge_index, cell_offsets, neighbors, edge_dist, edge_vector
-    ):
+    def reorder_symmetric_edges(self, edge_index, cell_offsets, neighbors, edge_dist, edge_vector):
         """
         Reorder edges to make finding counter-directional edges easier.
 
@@ -336,11 +328,7 @@ class GemNetT(BaseModel):
         cell_earlier = (
             (cell_offsets[:, 0] < 0)
             | ((cell_offsets[:, 0] == 0) & (cell_offsets[:, 1] < 0))
-            | (
-                (cell_offsets[:, 0] == 0)
-                & (cell_offsets[:, 1] == 0)
-                & (cell_offsets[:, 2] < 0)
-            )
+            | ((cell_offsets[:, 0] == 0) & (cell_offsets[:, 1] == 0) & (cell_offsets[:, 2] < 0))
         )
         mask_same_atoms = edge_index[0] == edge_index[1]
         mask_same_atoms &= cell_earlier
@@ -364,9 +352,7 @@ class GemNetT(BaseModel):
             neighbors,
         )
         batch_edge = batch_edge[mask]
-        neighbors_new = 2 * torch.bincount(
-            batch_edge, minlength=neighbors.size(0)
-        )
+        neighbors_new = 2 * torch.bincount(batch_edge, minlength=neighbors.size(0))
 
         # Create indexing array
         edge_reorder_idx = repeat_blocks(
@@ -378,15 +364,9 @@ class GemNetT(BaseModel):
 
         # Reorder everything so the edges of every image are consecutive
         edge_index_new = edge_index_cat[:, edge_reorder_idx]
-        cell_offsets_new = self.select_symmetric_edges(
-            cell_offsets, mask, edge_reorder_idx, True
-        )
-        edge_dist_new = self.select_symmetric_edges(
-            edge_dist, mask, edge_reorder_idx, False
-        )
-        edge_vector_new = self.select_symmetric_edges(
-            edge_vector, mask, edge_reorder_idx, True
-        )
+        cell_offsets_new = self.select_symmetric_edges(cell_offsets, mask, edge_reorder_idx, True)
+        edge_dist_new = self.select_symmetric_edges(edge_dist, mask, edge_reorder_idx, False)
+        edge_vector_new = self.select_symmetric_edges(edge_vector, mask, edge_reorder_idx, True)
 
         return (
             edge_index_new,
@@ -443,7 +423,13 @@ class GemNetT(BaseModel):
             select_cutoff = None
         else:
             select_cutoff = self.cutoff
-        (edge_index, cell_offsets, neighbors, D_st, V_st,) = self.select_edges(
+        (
+            edge_index,
+            cell_offsets,
+            neighbors,
+            D_st,
+            V_st,
+        ) = self.select_edges(
             data=data,
             edge_index=edge_index,
             cell_offsets=cell_offsets,
@@ -459,9 +445,7 @@ class GemNetT(BaseModel):
             neighbors,
             D_st,
             V_st,
-        ) = self.reorder_symmetric_edges(
-            edge_index, cell_offsets, neighbors, D_st, V_st
-        )
+        ) = self.reorder_symmetric_edges(edge_index, cell_offsets, neighbors, D_st, V_st)
 
         # Indices for swapping c->a and a->c (for symmetric MP)
         block_sizes = neighbors // 2
@@ -474,9 +458,7 @@ class GemNetT(BaseModel):
             repeat_inc=-block_sizes,
         )
 
-        id3_ba, id3_ca, id3_ragged_idx = self.get_triplets(
-            edge_index, num_atoms=num_atoms
-        )
+        id3_ba, id3_ca, id3_ragged_idx = self.get_triplets(edge_index, num_atoms=num_atoms)
 
         return (
             edge_index,
@@ -553,13 +535,9 @@ class GemNetT(BaseModel):
 
         nMolecules = torch.max(batch) + 1
         if self.extensive:
-            E_t = scatter(
-                E_t, batch, dim=0, dim_size=nMolecules, reduce="add"
-            )  # (nMolecules, num_targets)
+            E_t = scatter(E_t, batch, dim=0, dim_size=nMolecules, reduce="add")  # (nMolecules, num_targets)
         else:
-            E_t = scatter(
-                E_t, batch, dim=0, dim_size=nMolecules, reduce="mean"
-            )  # (nMolecules, num_targets)
+            E_t = scatter(E_t, batch, dim=0, dim_size=nMolecules, reduce="mean")  # (nMolecules, num_targets)
 
         if self.regress_forces:
             if self.direct_forces:
@@ -579,17 +557,11 @@ class GemNetT(BaseModel):
                     forces = []
                     for i in range(self.num_targets):
                         # maybe this can be solved differently
-                        forces += [
-                            -torch.autograd.grad(
-                                E_t[:, i].sum(), pos, create_graph=True
-                            )[0]
-                        ]
+                        forces += [-torch.autograd.grad(E_t[:, i].sum(), pos, create_graph=True)[0]]
                     F_t = torch.stack(forces, dim=1)
                     # (nAtoms, num_targets, 3)
                 else:
-                    F_t = -torch.autograd.grad(
-                        E_t.sum(), pos, create_graph=True
-                    )[0]
+                    F_t = -torch.autograd.grad(E_t.sum(), pos, create_graph=True)[0]
                     # (nAtoms, 3)
 
             return E_t, F_t  # (nMolecules, num_targets), (nAtoms, 3)

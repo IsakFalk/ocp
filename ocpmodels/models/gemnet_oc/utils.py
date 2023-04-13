@@ -110,9 +110,7 @@ def repeat_blocks(
         insert_dummy = False
 
     # Get repeats for each group using group lengths/sizes
-    r1 = torch.repeat_interleave(
-        torch.arange(len(sizes), device=sizes.device), repeats
-    )
+    r1 = torch.repeat_interleave(torch.arange(len(sizes), device=sizes.device), repeats)
 
     # Get total size of output array, as needed to initialize output indexing array
     N = (sizes * repeats).sum()
@@ -136,9 +134,7 @@ def repeat_blocks(
 
         # Add block increments
         if isinstance(block_inc, torch.Tensor):
-            insert_val += segment_csr(
-                block_inc[: r1[-1]], indptr, reduce="sum"
-            )
+            insert_val += segment_csr(block_inc[: r1[-1]], indptr, reduce="sum")
         else:
             insert_val += block_inc * (indptr[1:] - indptr[:-1])
             if insert_dummy:
@@ -192,9 +188,7 @@ def masked_select_sparsetensor_flat(src, mask):
     row = row[mask]
     col = col[mask]
     value = value[mask]
-    return SparseTensor(
-        row=row, col=col, value=value, sparse_sizes=src.sparse_sizes()
-    )
+    return SparseTensor(row=row, col=col, value=value, sparse_sizes=src.sparse_sizes())
 
 
 def calculate_interatomic_vectors(R, id_s, id_t, offsets_st):
@@ -356,19 +350,13 @@ def get_neighbor_order(num_atoms, index, atom_distance):
 
     # Create a tensor of size [num_atoms, max_num_neighbors] to sort the distances of the neighbors.
     # Fill with infinity so we can easily remove unused distances later.
-    distance_sort = torch.full(
-        [num_atoms * max_num_neighbors], np.inf, device=device
-    )
+    distance_sort = torch.full([num_atoms * max_num_neighbors], np.inf, device=device)
 
     # Create an index map to map distances from atom_distance to distance_sort
     index_neighbor_offset = torch.cumsum(num_neighbors, dim=0) - num_neighbors
-    index_neighbor_offset_expand = torch.repeat_interleave(
-        index_neighbor_offset, num_neighbors
-    )
+    index_neighbor_offset_expand = torch.repeat_interleave(index_neighbor_offset, num_neighbors)
     index_sort_map = (
-        index_sorted * max_num_neighbors
-        + torch.arange(len(index_sorted), device=device)
-        - index_neighbor_offset_expand
+        index_sorted * max_num_neighbors + torch.arange(len(index_sorted), device=device) - index_neighbor_offset_expand
     )
     distance_sort.index_copy_(0, index_sort_map, atom_distance)
     distance_sort = distance_sort.view(num_atoms, max_num_neighbors)
@@ -377,17 +365,13 @@ def get_neighbor_order(num_atoms, index, atom_distance):
     distance_sort, index_sort = torch.sort(distance_sort, dim=1)
 
     # Offset index_sort so that it indexes into index_sorted
-    index_sort = index_sort + index_neighbor_offset.view(-1, 1).expand(
-        -1, max_num_neighbors
-    )
+    index_sort = index_sort + index_neighbor_offset.view(-1, 1).expand(-1, max_num_neighbors)
     # Remove "unused pairs" with infinite distances
     mask_finite = torch.isfinite(distance_sort)
     index_sort = torch.masked_select(index_sort, mask_finite)
 
     # Create indices specifying the order in index_sort
-    order_peratom = torch.arange(max_num_neighbors, device=device)[
-        None, :
-    ].expand_as(mask_finite)
+    order_peratom = torch.arange(max_num_neighbors, device=device)[None, :].expand_as(mask_finite)
     order_peratom = torch.masked_select(order_peratom, mask_finite)
 
     # Re-index to obtain order value of each neighbor in index_sorted
@@ -412,13 +396,6 @@ def get_inner_idx(idx, dim_size):
 
 def get_edge_id(edge_idx, cell_offsets, num_atoms):
     cell_basis = cell_offsets.max() - cell_offsets.min() + 1
-    cell_id = (
-        (
-            cell_offsets
-            * cell_offsets.new_tensor([[1, cell_basis, cell_basis**2]])
-        )
-        .sum(-1)
-        .long()
-    )
+    cell_id = (cell_offsets * cell_offsets.new_tensor([[1, cell_basis, cell_basis**2]])).sum(-1).long()
     edge_id = edge_idx[0] + edge_idx[1] * num_atoms + cell_id * num_atoms**2
     return edge_id

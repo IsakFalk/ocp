@@ -10,8 +10,8 @@ As part of the [NeurIPS 2021 Climate Change AI Workshop](https://www.climatechan
     * IS2RS
   * OCP Calculator
   * Model Development
-  
-  
+
+
  Additionally, we provide several Jupyter notebooks:
    * [Data preprocessing](https://github.com/Open-Catalyst-Project/ocp/blob/master/tutorials/data_preprocessing.ipynb) - preprocessing raw ASE atoms object to OCP graph Data objects.
    * [LMDB dataset creation](https://github.com/Open-Catalyst-Project/ocp/blob/master/tutorials/lmdb_dataset_creation.ipynb) - creating your own OCP-comatible LMDB datasets from ASE-compatible Atoms objects.

@@ -111,9 +111,7 @@ class DimeNetWrap(DimeNet, BaseModel):
         row, col = edge_index  # j->i
 
         value = torch.arange(row.size(0), device=row.device)
-        adj_t = SparseTensor(
-            row=col, col=row, value=value, sparse_sizes=(num_nodes, num_nodes)
-        )
+        adj_t = SparseTensor(row=col, col=row, value=value, sparse_sizes=(num_nodes, num_nodes))
         adj_t_row = adj_t[row]
         num_triplets = adj_t_row.set_value(None).sum(dim=1).to(torch.long)
 
@@ -162,9 +160,7 @@ class DimeNetWrap(DimeNet, BaseModel):
 
         # Cap no. of triplets during training.
         if self.training:
-            sub_ix = torch.randperm(idx_i.size(0))[
-                : self.max_angles_per_image * data.natoms.size(0)
-            ]
+            sub_ix = torch.randperm(idx_i.size(0))[: self.max_angles_per_image * data.natoms.size(0)]
             idx_i, idx_j, idx_k = (
                 idx_i[sub_ix],
                 idx_j[sub_ix],
@@ -198,9 +194,7 @@ class DimeNetWrap(DimeNet, BaseModel):
         P = self.output_blocks[0](x, rbf, i, num_nodes=pos.size(0))
 
         # Interaction blocks.
-        for interaction_block, output_block in zip(
-            self.interaction_blocks, self.output_blocks[1:]
-        ):
+        for interaction_block, output_block in zip(self.interaction_blocks, self.output_blocks[1:]):
             x = interaction_block(x, rbf, sbf, idx_kj, idx_ji)
             P += output_block(x, rbf, i, num_nodes=pos.size(0))
 

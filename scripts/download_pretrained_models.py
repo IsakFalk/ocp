@@ -1,13 +1,15 @@
 """Download pretrained model checkpoints and output them in the correct directory."""
-from pathlib import Path
-import os
-from io import StringIO
-import re
-import pickle as pkl
-import pandas as pd
 import argparse
-from glob import glob
 import logging
+import os
+import pickle as pkl
+import re
+from glob import glob
+from io import StringIO
+from pathlib import Path
+
+import pandas as pd
+
 logging.basicConfig()
 logging.root.setLevel(logging.INFO)
 
@@ -52,6 +54,8 @@ MODELS = {
         "All": ["CGCNN", "DimeNet", "SchNet", "DimeNet++", "PaiNN"],
     },
 }
+
+
 # TODO: Add support for only outputting the command for running the model
 def download_checkpoint(datapath, checkpointpath, model, task, split):
     """Download a pretrained model checkpoint from the OCP repo."""
@@ -72,34 +76,23 @@ def download_checkpoint(datapath, checkpointpath, model, task, split):
     scalefile_link = row["scalefile"].item()
     split = re.sub(r"\+(Rattled|MD)", r"", split).lower()
     # Create the correct output directory.
-    output_checkpoint_dir_path = (
-        checkpointpath
-        / task
-        / split
-        / model.lower().replace("++", "_plus_plus")
-    )
+    output_checkpoint_dir_path = checkpointpath / task / split / model.lower().replace("++", "_plus_plus")
     output_checkpoint_dir_path.mkdir(parents=True, exist_ok=True)
     os.system(f"wget {checkpoint_link} -P {output_checkpoint_dir_path}")
     logging.info(f"Downloaded {model} for {task} {split}\n")
-    logging.info(
-        f"Checkpoint saved to {output_checkpoint_dir_path}/{checkpoint_link.split('/')[-1]}"
-    )
+    logging.info(f"Checkpoint saved to {output_checkpoint_dir_path}/{checkpoint_link.split('/')[-1]}")
     if not pd.isna(scalefile_link):
         os.system(f"wget {scalefile_link} -P {output_checkpoint_dir_path}")
-        logging.info(
-            f"Scalefile saved to {output_checkpoint_dir_path}/{scalefile_link.split('/')[-1]}"
-        )
+        logging.info(f"Scalefile saved to {output_checkpoint_dir_path}/{scalefile_link.split('/')[-1]}")
     logging.info(
-        f"Config yaml find can be found at: {os.path.join(os.path.dirname(ocpmodels.__path__[0])}/{row['config'].item().split('main/')[-1]}"
+        f"Config yaml find can be found at: {os.path.join(os.path.dirname(ocpmodels.__path__[0]))}/{row['config'].item().split('main/')[-1]}"
     )
 
 
 def main(args):
     datapath = Path(args.data_path)
     checkpointpath = Path(args.checkpoint_path)
-    download_checkpoint(
-        datapath, checkpointpath, args.model, args.task, args.split
-    )
+    download_checkpoint(datapath, checkpointpath, args.model, args.task, args.split)
 
 
 if __name__ == "__main__":
@@ -113,9 +106,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint-path",
         type=str,
-        default=os.path.join(
-            os.path.dirname(ocpmodels.__path__[0]), "checkpoints"
-        ),
+        default=os.path.join(os.path.dirname(ocpmodels.__path__[0]), "checkpoints"),
         help="Specify path to save checkpoints and scalefile. Defaults to 'ocpmodels/checpoints'",
     )
     parser.add_argument(
@@ -162,7 +153,6 @@ if __name__ == "__main__":
             "GemNet-OC-Large",
         ],
     )
-
 
     args, _ = parser.parse_known_args()
     main(args)

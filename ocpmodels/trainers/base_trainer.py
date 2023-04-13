@@ -88,14 +88,10 @@ class BaseTrainer(ABC):
             run_dir = os.getcwd()
 
         if timestamp_id is None:
-            timestamp = torch.tensor(datetime.datetime.now().timestamp()).to(
-                self.device
-            )
+            timestamp = torch.tensor(datetime.datetime.now().timestamp()).to(self.device)
             # create directories from master rank only
             distutils.broadcast(timestamp, 0)
-            timestamp = datetime.datetime.fromtimestamp(
-                timestamp.int()
-            ).strftime("%Y-%m-%d-%H-%M-%S")
+            timestamp = datetime.datetime.fromtimestamp(timestamp.int()).strftime("%Y-%m-%d-%H-%M-%S")
             if identifier:
                 self.timestamp_id = f"{timestamp}-{identifier}"
             else:
@@ -137,15 +133,9 @@ class BaseTrainer(ABC):
                 "seed": seed,
                 "timestamp_id": self.timestamp_id,
                 "commit": commit_hash,
-                "checkpoint_dir": os.path.join(
-                    run_dir, "checkpoints", self.timestamp_id
-                ),
-                "results_dir": os.path.join(
-                    run_dir, "results", self.timestamp_id
-                ),
-                "logs_dir": os.path.join(
-                    run_dir, "logs", logger_name, self.timestamp_id
-                ),
+                "checkpoint_dir": os.path.join(run_dir, "checkpoints", self.timestamp_id),
+                "results_dir": os.path.join(run_dir, "results", self.timestamp_id),
+                "logs_dir": os.path.join(run_dir, "logs", logger_name, self.timestamp_id),
             },
             "slurm": slurm,
             "noddp": noddp,
@@ -161,9 +151,9 @@ class BaseTrainer(ABC):
                 )
             else:
                 self.config["slurm"]["job_id"] = os.environ["SLURM_JOB_ID"]
-            self.config["slurm"]["folder"] = self.config["slurm"][
-                "folder"
-            ].replace("%j", self.config["slurm"]["job_id"])
+            self.config["slurm"]["folder"] = self.config["slurm"]["folder"].replace(
+                "%j", self.config["slurm"]["job_id"]
+            )
         if isinstance(dataset, list):
             if len(dataset) > 0:
                 self.config["dataset"] = dataset[0]
@@ -196,9 +186,7 @@ class BaseTrainer(ABC):
 
             # sets the hpo checkpoint frequency
             # default is no checkpointing
-            self.hpo_checkpoint_every = self.config["optim"].get(
-                "checkpoint_every", -1
-            )
+            self.hpo_checkpoint_every = self.config["optim"].get("checkpoint_every", -1)
 
         if distutils.is_master():
             print(yaml.dump(self.config, default_flow_style=False))
@@ -232,9 +220,7 @@ class BaseTrainer(ABC):
     def load_logger(self):
         self.logger = None
         if not self.is_debug and distutils.is_master() and not self.is_hpo:
-            assert (
-                self.config["logger"] is not None
-            ), "Specify logger in config"
+            assert self.config["logger"] is not None, "Specify logger in config"
 
             logger = self.config["logger"]
             logger_name = logger if isinstance(logger, str) else logger["name"]
@@ -287,9 +273,7 @@ class BaseTrainer(ABC):
         self.train_loader = self.val_loader = self.test_loader = None
 
         if self.config.get("dataset", None):
-            self.train_dataset = registry.get_dataset_class(
-                self.config["task"]["dataset"]
-            )(self.config["dataset"])
+            self.train_dataset = registry.get_dataset_class(self.config["task"]["dataset"])(self.config["dataset"])
             self.train_sampler = self.get_sampler(
                 self.train_dataset,
                 self.config["optim"]["batch_size"],
@@ -301,14 +285,12 @@ class BaseTrainer(ABC):
             )
 
             if self.config.get("val_dataset", None):
-                self.val_dataset = registry.get_dataset_class(
-                    self.config["task"]["dataset"]
-                )(self.config["val_dataset"])
+                self.val_dataset = registry.get_dataset_class(self.config["task"]["dataset"])(
+                    self.config["val_dataset"]
+                )
                 self.val_sampler = self.get_sampler(
                     self.val_dataset,
-                    self.config["optim"].get(
-                        "eval_batch_size", self.config["optim"]["batch_size"]
-                    ),
+                    self.config["optim"].get("eval_batch_size", self.config["optim"]["batch_size"]),
                     shuffle=False,
                 )
                 self.val_loader = self.get_dataloader(
@@ -317,14 +299,12 @@ class BaseTrainer(ABC):
                 )
 
             if self.config.get("test_dataset", None):
-                self.test_dataset = registry.get_dataset_class(
-                    self.config["task"]["dataset"]
-                )(self.config["test_dataset"])
+                self.test_dataset = registry.get_dataset_class(self.config["task"]["dataset"])(
+                    self.config["test_dataset"]
+                )
                 self.test_sampler = self.get_sampler(
                     self.test_dataset,
-                    self.config["optim"].get(
-                        "eval_batch_size", self.config["optim"]["batch_size"]
-                    ),
+                    self.config["optim"].get("eval_batch_size", self.config["optim"]["batch_size"]),
                     shuffle=False,
                 )
                 self.test_loader = self.get_dataloader(
@@ -344,9 +324,7 @@ class BaseTrainer(ABC):
                 )
             else:
                 self.normalizers["target"] = Normalizer(
-                    tensor=self.train_loader.dataset.data.y[
-                        self.train_loader.dataset.__indices__
-                    ],
+                    tensor=self.train_loader.dataset.data.y[self.train_loader.dataset.__indices__],
                     device=self.device,
                 )
 
@@ -361,16 +339,12 @@ class BaseTrainer(ABC):
 
         # TODO: depreicated, remove.
         bond_feat_dim = None
-        bond_feat_dim = self.config["model_attributes"].get(
-            "num_gaussians", 50
-        )
+        bond_feat_dim = self.config["model_attributes"].get("num_gaussians", 50)
 
         loader = self.train_loader or self.val_loader or self.test_loader
         self.model = registry.get_model_class(self.config["model"])(
             loader.dataset[0].x.shape[-1]
-            if loader
-            and hasattr(loader.dataset[0], "x")
-            and loader.dataset[0].x is not None
+            if loader and hasattr(loader.dataset[0], "x") and loader.dataset[0].x is not None
             else None,
             bond_feat_dim,
             self.num_targets,
@@ -378,10 +352,7 @@ class BaseTrainer(ABC):
         ).to(self.device)
 
         if distutils.is_master():
-            logging.info(
-                f"Loaded {self.model.__class__.__name__} with "
-                f"{self.model.num_params} parameters."
-            )
+            logging.info(f"Loaded {self.model.__class__.__name__} with " f"{self.model.num_params} parameters.")
 
         if self.logger is not None:
             self.logger.watch(self.model)
@@ -392,15 +363,11 @@ class BaseTrainer(ABC):
             num_gpus=1 if not self.cpu else 0,
         )
         if distutils.initialized() and not self.config["noddp"]:
-            self.model = DistributedDataParallel(
-                self.model, device_ids=[self.device]
-            )
+            self.model = DistributedDataParallel(self.model, device_ids=[self.device])
 
     def load_checkpoint(self, checkpoint_path):
         if not os.path.isfile(checkpoint_path):
-            raise FileNotFoundError(
-                errno.ENOENT, "Checkpoint file not found", checkpoint_path
-            )
+            raise FileNotFoundError(errno.ENOENT, "Checkpoint file not found", checkpoint_path)
 
         logging.info(f"Loading checkpoint from: {checkpoint_path}")
         map_location = torch.device("cpu") if self.cpu else self.device
@@ -419,15 +386,9 @@ class BaseTrainer(ABC):
         key_count_diff = mod_key_count - ckpt_key_count
 
         if key_count_diff > 0:
-            new_dict = {
-                key_count_diff * "module." + k: v
-                for k, v in checkpoint["state_dict"].items()
-            }
+            new_dict = {key_count_diff * "module." + k: v for k, v in checkpoint["state_dict"].items()}
         elif key_count_diff < 0:
-            new_dict = {
-                k[len("module.") * abs(key_count_diff) :]: v
-                for k, v in checkpoint["state_dict"].items()
-            }
+            new_dict = {k[len("module.") * abs(key_count_diff) :]: v for k, v in checkpoint["state_dict"].items()}
         else:
             new_dict = checkpoint["state_dict"]
 
@@ -454,9 +415,7 @@ class BaseTrainer(ABC):
 
         for key in checkpoint["normalizers"]:
             if key in self.normalizers:
-                self.normalizers[key].load_state_dict(
-                    checkpoint["normalizers"][key]
-                )
+                self.normalizers[key].load_state_dict(checkpoint["normalizers"][key])
             if self.scaler and checkpoint["amp"]:
                 self.scaler.load_state_dict(checkpoint["amp"])
 
@@ -474,9 +433,7 @@ class BaseTrainer(ABC):
             elif loss_name == "atomwisel2":
                 self.loss_fn[loss] = AtomwiseL2Loss()
             else:
-                raise NotImplementedError(
-                    f"Unknown loss function name: {loss_name}"
-                )
+                raise NotImplementedError(f"Unknown loss function name: {loss_name}")
             self.loss_fn[loss] = DDPLoss(self.loss_fn[loss])
 
     def load_optimizer(self):
@@ -484,7 +441,6 @@ class BaseTrainer(ABC):
         optimizer = getattr(optim, optimizer)
 
         if self.config["optim"].get("weight_decay", 0) > 0:
-
             # Do not regularize bias etc.
             params_decay = []
             params_no_decay = []
@@ -546,16 +502,11 @@ class BaseTrainer(ABC):
                         "scheduler": self.scheduler.scheduler.state_dict()
                         if self.scheduler.scheduler_type != "Null"
                         else None,
-                        "normalizers": {
-                            key: value.state_dict()
-                            for key, value in self.normalizers.items()
-                        },
+                        "normalizers": {key: value.state_dict() for key, value in self.normalizers.items()},
                         "config": self.config,
                         "val_metrics": metrics,
                         "ema": self.ema.state_dict() if self.ema else None,
-                        "amp": self.scaler.state_dict()
-                        if self.scaler
-                        else None,
+                        "amp": self.scaler.state_dict() if self.scaler else None,
                         "best_val_metric": self.best_val_metric,
                         "primary_metric": self.config["task"].get(
                             "primary_metric",
@@ -572,15 +523,10 @@ class BaseTrainer(ABC):
                 ckpt_path = save_checkpoint(
                     {
                         "state_dict": self.model.state_dict(),
-                        "normalizers": {
-                            key: value.state_dict()
-                            for key, value in self.normalizers.items()
-                        },
+                        "normalizers": {key: value.state_dict() for key, value in self.normalizers.items()},
                         "config": self.config,
                         "val_metrics": metrics,
-                        "amp": self.scaler.state_dict()
-                        if self.scaler
-                        else None,
+                        "amp": self.scaler.state_dict() if self.scaler else None,
                     },
                     checkpoint_dir=self.config["cmd"]["checkpoint_dir"],
                     checkpoint_file=checkpoint_file,
@@ -595,15 +541,11 @@ class BaseTrainer(ABC):
         # checkpointing frequency can be adjusted by setting checkpoint_every in steps
         # to checkpoint every time results are communicated to Ray Tune set checkpoint_every=1
         if checkpoint_every != -1 and step % checkpoint_every == 0:
-            with tune.checkpoint_dir(  # noqa: F821
-                step=step
-            ) as checkpoint_dir:
+            with tune.checkpoint_dir(step=step) as checkpoint_dir:  # noqa: F821
                 path = os.path.join(checkpoint_dir, "checkpoint")
                 torch.save(self.save_state(epoch, step, metrics), path)
 
-    def hpo_update(
-        self, epoch, step, train_metrics, val_metrics, test_metrics=None
-    ):
+    def hpo_update(self, epoch, step, train_metrics, val_metrics, test_metrics=None):
         progress = {
             "steps": step,
             "epochs": epoch,
@@ -620,9 +562,7 @@ class BaseTrainer(ABC):
         # report metrics to tune
         tune_reporter(  # noqa: F821
             iters=progress,
-            train_metrics={
-                k: train_metrics[k]["metric"] for k in self.metrics
-            },
+            train_metrics={k: train_metrics[k]["metric"] for k in self.metrics},
             val_metrics={k: val_metrics[k]["metric"] for k in val_metrics},
             test_metrics=test_metrics,
         )
@@ -669,16 +609,10 @@ class BaseTrainer(ABC):
         aggregated_metrics = {}
         for k in metrics:
             aggregated_metrics[k] = {
-                "total": distutils.all_reduce(
-                    metrics[k]["total"], average=False, device=self.device
-                ),
-                "numel": distutils.all_reduce(
-                    metrics[k]["numel"], average=False, device=self.device
-                ),
+                "total": distutils.all_reduce(metrics[k]["total"], average=False, device=self.device),
+                "numel": distutils.all_reduce(metrics[k]["numel"], average=False, device=self.device),
             }
-            aggregated_metrics[k]["metric"] = (
-                aggregated_metrics[k]["total"] / aggregated_metrics[k]["numel"]
-            )
+            aggregated_metrics[k]["metric"] = aggregated_metrics[k]["total"] / aggregated_metrics[k]["numel"]
         metrics = aggregated_metrics
 
         log_dict = {k: metrics[k]["metric"] for k in metrics}
@@ -732,9 +666,7 @@ class BaseTrainer(ABC):
                 max_norm=self.clip_grad_norm,
             )
             if self.logger is not None:
-                self.logger.log(
-                    {"grad_norm": grad_norm}, step=self.step, split="train"
-                )
+                self.logger.log({"grad_norm": grad_norm}, step=self.step, split="train")
         if self.scaler:
             self.scaler.step(self.optimizer)
             self.scaler.update()
@@ -782,13 +714,9 @@ class BaseTrainer(ABC):
             gather_results["ids"] = np.array(gather_results["ids"])[idx]
             for k in keys:
                 if k == "forces":
-                    gather_results[k] = np.concatenate(
-                        np.array(gather_results[k])[idx]
-                    )
+                    gather_results[k] = np.concatenate(np.array(gather_results[k])[idx])
                 elif k == "chunk_idx":
-                    gather_results[k] = np.cumsum(
-                        np.array(gather_results[k])[idx]
-                    )[:-1]
+                    gather_results[k] = np.cumsum(np.array(gather_results[k])[idx])[:-1]
                 else:
                     gather_results[k] = np.array(gather_results[k])[idx]
 

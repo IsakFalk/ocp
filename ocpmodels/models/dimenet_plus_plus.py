@@ -36,7 +36,6 @@ import torch
 from torch import nn
 from torch_geometric.nn import radius_graph
 from torch_geometric.nn.inits import glorot_orthogonal
-
 from torch_geometric.nn.models.dimenet import (
     BesselBasisLayer,
     EmbeddingBlock,
@@ -81,9 +80,7 @@ class InteractionPPBlock(torch.nn.Module):
         # Transformations of Bessel and spherical basis representations.
         self.lin_rbf1 = nn.Linear(num_radial, basis_emb_size, bias=False)
         self.lin_rbf2 = nn.Linear(basis_emb_size, hidden_channels, bias=False)
-        self.lin_sbf1 = nn.Linear(
-            num_spherical * num_radial, basis_emb_size, bias=False
-        )
+        self.lin_sbf1 = nn.Linear(num_spherical * num_radial, basis_emb_size, bias=False)
         self.lin_sbf2 = nn.Linear(basis_emb_size, int_emb_size, bias=False)
 
         # Dense transformations of input messages.
@@ -96,17 +93,11 @@ class InteractionPPBlock(torch.nn.Module):
 
         # Residual layers before and after skip connection.
         self.layers_before_skip = torch.nn.ModuleList(
-            [
-                ResidualLayer(hidden_channels, act)
-                for _ in range(num_before_skip)
-            ]
+            [ResidualLayer(hidden_channels, act) for _ in range(num_before_skip)]
         )
         self.lin = nn.Linear(hidden_channels, hidden_channels)
         self.layers_after_skip = torch.nn.ModuleList(
-            [
-                ResidualLayer(hidden_channels, act)
-                for _ in range(num_after_skip)
-            ]
+            [ResidualLayer(hidden_channels, act) for _ in range(num_after_skip)]
         )
 
         self.reset_parameters()
@@ -249,7 +240,6 @@ class DimeNetPlusPlus(torch.nn.Module):
         num_output_layers=3,
         act="silu",
     ):
-
         act = activation_resolver(act)
 
         super(DimeNetPlusPlus, self).__init__()
@@ -262,9 +252,7 @@ class DimeNetPlusPlus(torch.nn.Module):
         self.num_blocks = num_blocks
 
         self.rbf = BesselBasisLayer(num_radial, cutoff, envelope_exponent)
-        self.sbf = SphericalBasisLayer(
-            num_spherical, num_radial, cutoff, envelope_exponent
-        )
+        self.sbf = SphericalBasisLayer(num_spherical, num_radial, cutoff, envelope_exponent)
 
         self.emb = EmbeddingBlock(num_radial, hidden_channels, act)
 
@@ -312,9 +300,7 @@ class DimeNetPlusPlus(torch.nn.Module):
         row, col = edge_index  # j->i
 
         value = torch.arange(row.size(0), device=row.device)
-        adj_t = SparseTensor(
-            row=col, col=row, value=value, sparse_sizes=(num_nodes, num_nodes)
-        )
+        adj_t = SparseTensor(row=col, col=row, value=value, sparse_sizes=(num_nodes, num_nodes))
         adj_t_row = adj_t[row]
         num_triplets = adj_t_row.set_value(None).sum(dim=1).to(torch.long)
 
@@ -438,9 +424,7 @@ class DimeNetPlusPlusWrap(DimeNetPlusPlus, BaseModel):
         P = self.output_blocks[0](x, rbf, i, num_nodes=pos.size(0))
 
         # Interaction blocks.
-        for interaction_block, output_block in zip(
-            self.interaction_blocks, self.output_blocks[1:]
-        ):
+        for interaction_block, output_block in zip(self.interaction_blocks, self.output_blocks[1:]):
             x = interaction_block(x, rbf, sbf, idx_kj, idx_ji)
             P += output_block(x, rbf, i, num_nodes=pos.size(0))
 
