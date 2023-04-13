@@ -384,61 +384,6 @@ class MEKRRTrainer:
 
         return predictions
 
-    # def save(
-    #     self,
-    #     metrics=None,
-    #     checkpoint_file="checkpoint.pt",
-    #     training_state=True,
-    # ):
-    #     if training_state:
-    #         config = (
-    #             {
-    #                 "epoch": self.epoch,
-    #                 "step": self.step,
-    #                 "state_dict": self.model.state_dict(),
-    #                 "optimizer": self.optimizer.state_dict(),
-    #                 "scheduler": self.scheduler.scheduler.state_dict()
-    #                 if self.scheduler.scheduler_type != "Null"
-    #                 else None,
-    #                 "normalizers": {key: value.state_dict() for key, value in self.normalizers.items()},
-    #                 "config": self.config,
-    #                 "val_metrics": metrics,
-    #                 # "ema": self.ema.state_dict() if self.ema else None,
-    #                 # "amp": self.scaler.state_dict()
-    #                 # if self.scaler
-    #                 # else None,
-    #                 "best_val_metric": self.best_val_metric,
-    #                 # "primary_metric": self.config["task"].get(
-    #                 #     "primary_metric",
-    #                 #     self.evaluator.task_primary_metric[self.name],
-    #                 # ),
-    #             },
-    #         )
-    #         save_checkpoint(
-    #             config,
-    #             # checkpoint_dir=self.config["cmd"]["checkpoint_dir"],
-    #             checkpoint_file=checkpoint_file,
-    #         )
-    #     else:
-    #         config = (
-    #             {
-    #                 "state_dict": self.model.state_dict(),
-    #                 "normalizers": {key: value.state_dict() for key, value in self.normalizers.items()},
-    #                 "config": self.config,
-    #                 "val_metrics": metrics,
-    #                 # "amp": self.scaler.state_dict()
-    #                 # if self.scaler
-    #                 # else None,
-    #             },
-    #         )
-    #         ckpt_path = save_checkpoint(
-    #             config,
-    #             # checkpoint_dir=self.checkpoint_dir,
-    #             checkpoint_file=checkpoint_file,
-    #         )
-    #         return ckpt_path
-    #     return None
-
 
 class GNNTrainer:
     def __init__(
