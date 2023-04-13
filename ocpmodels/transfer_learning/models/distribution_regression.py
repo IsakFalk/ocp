@@ -84,7 +84,9 @@ class KernelMeanEmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
         self.y_ = y
 
         k = self.kernel(X, X)
-        klmbda = k + torch.eye(k.shape[0]) * self.lmbda
+        #klmbda = k + torch.eye(k.shape[0]) * self.lmbda
+        # Below is the same as above but avoids the creation of a new tensor on a different device
+        klmbda = (k - k.diag().diag()) + (self.lmbda + k.diag()).diag()
         self.k_ = k
         self.alpha_ = LA.solve(klmbda, y)
         return self
