@@ -1,26 +1,26 @@
 
 # Table of Contents
 
--   [Transfer Learning](#org78f805e)
-    -   [Training](#orgb9fe7ef)
-    -   [Repo](#orgbe8192a)
-    -   [Config files](#orge6bd889)
-    -   [Logging](#org8d5346e)
+-   [Transfer Learning](#org74c62aa)
+    -   [Training](#org49ba22d)
+    -   [Repo](#org2b0a0a7)
+    -   [Config files](#orga068f14)
+    -   [Logging](#org7ca5507)
 
 
 
-<a id="org78f805e"></a>
+<a id="org74c62aa"></a>
 
 # Transfer Learning
 
 This subrepo follows approximately how OCP is structuring theirs.
 
 
-<a id="orgb9fe7ef"></a>
+<a id="org49ba22d"></a>
 
 ## Training
 
-There&rsquo;s a `main.py` file which is the entrypoint for all training. You run this
+There&rsquo;s a `main.py` file which is the entrypoint for all training. **Run this file from the parent directory** `ocp`. You run this
 from the command line and running `python main.py --help` yields the output
 
     usage: main.py [-h] --config-yml CONFIG_YML [--debug] [--run-dir RUN_DIR] [--print-every PRINT_EVERY] [--seed SEED] [--cpu]
@@ -56,7 +56,7 @@ The `main.py` file works as follows
         (e.g. training, prediction and so on.)
 
 
-<a id="orgbe8192a"></a>
+<a id="org2b0a0a7"></a>
 
 ## Repo
 
@@ -67,7 +67,7 @@ The code is under `ocp/ocpmodels/transfer_learning` as it allows us to use this 
 which will make the `ocpmodels` and the submodule `ocpmodels.transfer_learning` available.
 
 
-<a id="orge6bd889"></a>
+<a id="orga068f14"></a>
 
 ## Config files
 
@@ -129,7 +129,7 @@ of `dataset, logger, model, optim, hide_eval_progressbar, tasks, runner` is a
 good way to structure your config and may even be necessary.
 
 
-<a id="org8d5346e"></a>
+<a id="org7ca5507"></a>
 
 ## Logging
 
