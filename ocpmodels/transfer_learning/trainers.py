@@ -848,6 +848,7 @@ class GNNTrainer:
         return metrics
 
     def _forward(self, batch):
+        batch.to(self.device)
         # forward pass.
         if self.config["model_attributes"].get("regress_forces", True):
             out_energy, out_forces = self.model(batch)
