@@ -4,6 +4,9 @@ Copyright (c) Facebook, Inc. and its affiliates.
 This source code is licensed under the MIT license found in the
 LICENSE file in the root directory of this source tree.
 """
+import warnings
+
+warnings.filterwarnings("ignore", module="torch_geometric")
 
 from ocpmodels.common.utils import setup_logging
 from ocpmodels.transfer_learning.common.flags import flags
