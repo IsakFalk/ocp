@@ -25,7 +25,7 @@ submitit = "*"
 # torch-cluster = {index= "pytorch-geometric", version= "*"}
 # torch-spline-conv = {index= "pytorch-geometric", version= "*"}
 # torch-geometric = {index= "pytorch-geometric", version= "*"}
-torch = {version = "==1.13.1+cu117", index = "downloadpytorch"}
+torch = {version = "==2.0.0+cu118", index = "downloadpytorch"}
 
 [dev-packages]
 pre-commit = "2.10"
