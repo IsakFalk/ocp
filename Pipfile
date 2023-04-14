@@ -26,6 +26,7 @@ submitit = "*"
 # torch-spline-conv = {index= "pytorch-geometric", version= "*"}
 # torch-geometric = {index= "pytorch-geometric", version= "*"}
 torch = {version = "==2.0.0+cu118", index = "downloadpytorch"}
+quippy-ase = "*"
 
 [dev-packages]
 pre-commit = "2.10"
