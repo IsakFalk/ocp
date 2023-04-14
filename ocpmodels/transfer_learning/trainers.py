@@ -3,6 +3,7 @@ import logging
 import random
 from pathlib import Path
 from pprint import pprint
+import datetime
 
 import numpy as np
 import torch
@@ -67,8 +68,19 @@ class MEKRRTrainer:
         self.print_every = print_every  # Not used here
         self.seed = seed
         self.run_dir = run_dir
+        self.timestamp_id = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         # Create run dir if it doesn't exist
-
+        self.path_run_dir = Path(self.run_dir)
+        self.path_run_dir.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_dir = self.path_run_dir / "checkpoints"
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self.predictions_dir = self.path_run_dir / "predictions"
+        self.predictions_dir.mkdir(parents=True, exist_ok=True)
+        # Setup paths
+        self.checkpoint_dir = self.path_run_dir / "checkpoints" / self.timestamp_id
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self.predictions_dir = self.path_run_dir / "predictions" / self.timestamp_id
+        self.predictions_dir.mkdir(parents=True, exist_ok=True)
         self.is_debug = is_debug
 
         if torch.cuda.is_available() and not self.cpu:
@@ -91,18 +103,13 @@ class MEKRRTrainer:
             "logger": self.logger_config,
             "optim": self.optimizer,
             "name": name,
+            "timestamp_id": self.timestamp_id,
             "dataset": self.dataset_config,
         }
 
         pprint(self.config)
 
         self.load()
-
-        # Setup paths
-        self.checkpoint_dir = self.path_run_dir / "checkpoints" / self.logger.timestamp_id
-        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        self.predictions_dir = self.path_run_dir / "predictions" / self.logger.timestamp_id
-        self.predictions_dir.mkdir(parents=True, exist_ok=True)
 
         self.normalizer = self.config["dataset"]["train"]
         self.normalizers = {}
@@ -114,7 +121,7 @@ class MEKRRTrainer:
                     device=self.device,
                 )
             else:
-                y = torch.tensor([data.y.clone().detach() for data in self.train_dataset])
+                y = self.train_dataset.y.clone().detach()
                 self.normalizers["target"] = Normalizer(
                     mean=y.mean().float(),
                     std=y.std().float(),
@@ -127,7 +134,7 @@ class MEKRRTrainer:
                     device=self.device,
                 )
             else:
-                forces = torch.cat([data.force.clone().detach() for data in self.train_dataset], dim=0)
+                forces = self.train_dataset.force.clone().detach()
                 self.normalizers["grad_target"] = Normalizer(
                     mean=0.0,
                     std=forces.std().float(),
@@ -761,12 +768,18 @@ class GNNTrainer:
         self.print_every = print_every
         self.seed = seed
         self.run_dir = run_dir
+        self.timestamp_id = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         # Create run dir if it doesn't exist
         self.path_run_dir = Path(self.run_dir)
         self.path_run_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_dir = self.path_run_dir / "checkpoints"
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.predictions_dir = self.path_run_dir / "predictions"
+        self.predictions_dir.mkdir(parents=True, exist_ok=True)
+        # Setup paths
+        self.checkpoint_dir = self.path_run_dir / "checkpoints" / self.timestamp_id
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self.predictions_dir = self.path_run_dir / "predictions" / self.timestamp_id
         self.predictions_dir.mkdir(parents=True, exist_ok=True)
         self.is_debug = is_debug
         self.epoch = 0
@@ -784,18 +797,13 @@ class GNNTrainer:
             "optim": self.optimizer,
             "logger": self.logger_config,
             "name": name,
+            "timestamp_id": self.timestamp_id,
             "dataset": self.dataset_config,
         }
 
         pprint(self.config)
 
         self.load()
-
-        # Setup paths
-        self.checkpoint_dir = self.path_run_dir / "checkpoints" / self.logger.timestamp_id
-        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        self.predictions_dir = self.path_run_dir / "predictions" / self.logger.timestamp_id
-        self.predictions_dir.mkdir(parents=True, exist_ok=True)
 
         # If we're computing gradients wrt input, set mean of normalizer to 0 --
         # since it is lost when compute dy / dx -- and std to forward target std
@@ -809,7 +817,7 @@ class GNNTrainer:
                     device=self.device,
                 )
             else:
-                y = torch.tensor([data.y.clone().detach() for data in self.train_dataset])
+                y = torch.tensor([data.y for data in self.train_dataset])
                 self.normalizers["target"] = Normalizer(
                     mean=y.mean().float(),
                     std=y.std().float(),
@@ -1008,7 +1016,7 @@ class GNNTrainer:
                 )
                 if self.step % self.print_every == 0:
                     log_str = ["{}: {:.2e}".format(k, v) for k, v in log_dict.items()]
-                    logging.info(", ".join(log_str))
+                    logging.info(", ".join(log_str))  # TODO: In future, this should output metrics, such as mae
                     self.metrics = {"energy_loss": [], "forces_loss": []}
 
                 if self.logger is not None:
@@ -1076,7 +1084,8 @@ class GNNTrainer:
             with open(self.predictions_dir / "predictions.npz", "wb") as f:
                 np.savez(f, **array_dict)
 
-            self.logger.log_predictions(self.predictions_dir)
+            if not self.is_debug:
+                self.logger.log_predictions(self.predictions_dir)
 
     @torch.no_grad()
     def validate(self, split="val", disable_tqdm=False):

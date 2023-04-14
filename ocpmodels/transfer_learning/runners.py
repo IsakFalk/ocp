@@ -65,7 +65,8 @@ class MEKRRRunner(BaseRunner):
             with open(self.trainer.predictions_dir / "predictions.npz", "wb") as f:
                 np.savez(f, **array_dict)
 
-            self.trainer.logger.log_predictions(self.trainer.predictions_dir)
+            if not self.trainer.is_debug:
+                self.trainer.logger.log_predictions(self.trainer.predictions_dir)
 
 
 class GNNRunner(BaseRunner):

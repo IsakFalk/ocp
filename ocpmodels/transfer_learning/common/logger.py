@@ -56,14 +56,10 @@ class WandBLogger(Logger):
         project = "mlcompchem"
         entity = "mlcompchem"
 
-        # For unique logging
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        self.timestamp_id = timestamp
-
         wandb.init(
             config=self.config,
             save_code=True,
-            name=f"{self.timestamp_id}-{self.config['logger'].get('name', '')}",
+            name=f"{self.config['timestamp_id']}-{self.config['logger'].get('name', '')}",
             entity=entity,
             project=project,
             resume="allow",
