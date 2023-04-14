@@ -1,28 +1,23 @@
 dataset:
   train:
     # path to extxyz files
-    src: data/luigi/example-traj-Fe-N2-111.xyz
+    src: data/luigi/splits/formula=Fe40N2,surface=110,driver=nn-sp,bias=metad_train.xyz
     # If we want to normalize each target value, i.e. subtract the mean and
     # divide by standard deviation, then those 'target_mean' and 'target_std'
     # statistics for energies and 'grad_target_mean' and 'grad_target_std'
     # statistics for forces need to be specified here for the train split.
     normalize_labels: True
-    # These stats are for example-traj-Fe-N2-111.xyz
-    target_mean: -34662.8389
-    target_std: 0.6950
-    grad_target_mean: 0.0
-    grad_target_std: 0.5969                                   # True or False
   val:
     # path to extxyz files
-    src: data/luigi/example-traj-Fe-N2-111.xyz
+    src: data/luigi/splits/formula=Fe40N2,surface=110,driver=nn-sp,bias=metad_val.xyz
   test:
     # path to extxyz files
-    src: data/luigi/example-traj-Fe-N2-111.xyz
+    src: data/luigi/splits/formula=Fe40N2,surface=110,driver=nn-sp,bias=metad_test.xyz
 
 # Values for logger, such as tagging and name of run
 logger:
   tags: []
-  name: "schnet-very-test"
+  name: "schnet"
 
 model:
   name: "schnet"
@@ -40,10 +35,10 @@ model:
 optim:
   # Batch size per GPU for training.
   # Note that effective batch size will be 'batch_size' x no. of GPUs. # NOTE: We don't do multi-gpu training
-  batch_size: 8
+  batch_size: 16
   # Batch size per GPU for evaluation.
   # Note that effective batch size will be 'eval_batch_size' x no. of GPUs. # NOTE: We don't do multi-gpu training
-  eval_batch_size: 8
+  eval_batch_size: 16
   # No. of subprocesses to use for dataloading, pass as an arg to
   # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader.
   num_workers: 8
@@ -66,7 +61,7 @@ optim:
   #energy_coefficient: 1
   #energy_loss_coefficient: 1.0
   # Coefficient to use for the force loss.
-  force_loss_coefficient: 0.5
+  force_loss_coefficient: 0.3
   # Optimizer to use from torch.optim.
   # Default is https://pytorch.org/docs/stable/generated/torch.optim.AdamW.html.
   optimizer: AdamW
@@ -98,7 +93,7 @@ optim:
   #factor: 0.8
   #patience: 3
   # No. of epochs to train for.
-  max_epochs: 20
+  max_epochs: 100
 
 hide_eval_progressbar: True
 
