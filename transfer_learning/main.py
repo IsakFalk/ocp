@@ -12,7 +12,11 @@ from ocpmodels.common.utils import setup_logging
 from ocpmodels.transfer_learning.common.flags import flags
 from ocpmodels.transfer_learning.common.utils import get_config
 from ocpmodels.transfer_learning.loaders import BaseLoader  # noqa: F401
-from ocpmodels.transfer_learning.runners import GNNRunner, MEKRRRunner
+from ocpmodels.transfer_learning.runners import (
+    GAPRunner,
+    GNNRunner,
+    MEKRRRunner,
+)
 
 if __name__ == "__main__":
     setup_logging()
@@ -25,6 +29,12 @@ if __name__ == "__main__":
         runner = GNNRunner(config, args)
     elif config["runner"] == "MEKRR":
         runner = MEKRRRunner(config, args)
+    elif config["runner"] == "GAP":
+        runner = GAPRunner(config, args)
+    elif config["runner"] == "GDML":
+        raise NotImplementedError
+    elif config["runner"] == "BPNN":
+        raise NotImplementedError
 
     runner.setup()
     runner.run()

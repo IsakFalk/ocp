@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import numpy as np
-from ase import Atoms
 from ase.io import read, write
 
 DATA_PATH = Path("data/luigi/")

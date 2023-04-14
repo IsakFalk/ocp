@@ -90,3 +90,30 @@ class GNNRunner(BaseRunner):
             self.trainer.train(
                 disable_eval_tqdm=self.config.get("hide_eval_progressbar", False),
             )
+
+
+class GAPRunner(BaseRunner):
+    def setup(self):
+        self.trainer = GAPTrainer(
+            self.config["dataset"],
+            self.config["model"],
+            self.config["logger"],
+            print_every=self.run_args.print_every,
+            seed=self.run_args.seed,
+            cpu=self.run_args.cpu,
+            name=self.config["logger"]["name"],
+            run_dir=self.run_args.run_dir,
+            is_debug=self.run_args.debug,
+        )
+
+    def run(self):
+        if self.config["task"].get("train", True):
+            self.trainer.train()
+        if self.config["task"].get("validate", True):
+            self.trainer.validate(
+                split="val",
+            )
+        if self.config["task"].get("test", True):
+            self.trainer.validate(
+                split="test",
+            )
