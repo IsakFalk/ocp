@@ -1,0 +1,302 @@
+libAtoms::Hello World: 2023-04-14 18:30:44
+libAtoms::Hello World: git version  https://github.com/libAtoms/QUIP,v0.9.12-dirty
+libAtoms::Hello World: QUIP_ARCH    linux_x86_64_gfortran_openmp
+libAtoms::Hello World: compiled on  Jan 15 2023 at 16:26:45
+libAtoms::Hello World: OpenMP parallelisation with 16 threads
+WARNING: libAtoms::Hello World: environment variable OMP_STACKSIZE not set explicitly. The default value - system and compiler dependent - may be too small for some applications.
+libAtoms::Hello World: Random Seed = 66644395
+libAtoms::Hello World: global verbosity = 0
+
+Calls to system_timer will do nothing by default
+
+verbosity type=STRING scalar current_value=NORMAL
+verbosity level
+
+timing type=LOGICAL scalar current_value=F
+Enable system timer
+
+atoms_filename type=STRING scalar current_value=stdin
+input file for atoms, xyz or nc format
+
+param_filename type=STRING scalar current_value=quip_params.xml
+input file for potential xml parameters
+
+E type=LOGICAL scalar current_value=F
+Calculate energy
+
+energy type=LOGICAL scalar current_value=F
+Calculate energy
+
+F type=LOGICAL scalar current_value=F
+Calculate forces
+
+forces type=LOGICAL scalar current_value=F
+Calculate forces
+
+V type=LOGICAL scalar current_value=F
+Calculate virial (stress)
+
+virial type=LOGICAL scalar current_value=F
+Calculate virial (stress)
+
+L type=LOGICAL scalar current_value=F
+Calculate local quantities, e.g. local energy
+
+local type=LOGICAL scalar current_value=F
+Calculate local quantities, e.g. local energy
+
+cij type=LOGICAL scalar current_value=F
+Calculate relaxed elastic constants
+
+c0ij type=LOGICAL scalar current_value=F
+Calculate unrelaxed elastic constants
+
+cij_dx type=REAL scalar current_value=0.01
+Cartesian displacement size to use for elastic constant calculations
+
+cij_relax_initial type=LOGICAL scalar current_value=F
+Relax initial configuration for elastic constant calculations
+
+torque type=LOGICAL scalar current_value=F
+Calculate torque
+
+phonons type=LOGICAL scalar current_value=F
+Calculate phonons
+
+phonons_path_start type=REAL dim=3 current_value='0.0 0.0 0.0'
+phonons path start
+
+phonons_path_end type=REAL dim=3 current_value='0.0 0.0 0.0'
+phonons path
+end
+
+phonons_path_steps type=INTEGER scalar current_value=3
+phonons path steps
+
+frozen_phonons type=LOGICAL scalar current_value=F
+Refine phonon frequencies by displacing along computed phonon vectors?
+
+phonons_zero_rotation type=LOGICAL scalar current_value=F
+project out rotation components from phonons?
+
+force_const_mat type=LOGICAL scalar current_value=F
+print out force constant matrix from phonon calculation?
+
+phonopy_force_const_mat type=LOGICAL scalar current_value=F
+Print out force constant matrix and atomic positions in phonopy 1.12.4 format.
+Atomic positions and force constants are the ones resulting from the (fine) supe-
+rcell. WARNING: It is not guaranteed to work with versions different from phonop-
+y 1.12.4 and does only support a single atomic species at a time (no alloys).
+
+parallel_phonons type=LOGICAL scalar current_value=F
+compute phonons in parallel?
+
+dipole_moment type=LOGICAL scalar current_value=F
+compute dipole moment?
+
+absorption type=LOGICAL scalar current_value=F
+compute absorption spectrum (electronic, TB only)?
+
+absorption_polarization type=REAL dim=6 current_value='0.0 0.0  0.0 0.0  1.0 0.0'
+polarization vector along with to compute absorption spectrum
+
+absorption_freq_range type=REAL dim=3 current_value='0.1 1.0 0.1'
+frequency range in which to compute absorption spectrum
+
+absorption_gamma type=REAL scalar current_value=0.01
+energy broadening for absorption calculation
+
+phonons_dx type=REAL scalar current_value=0.01
+Cartesian displacement size to use for phonon calculations
+
+phonon_supercell type=INTEGER dim=3 current_value='1 1 1'
+Supercell in which to do the force calculations in a phonon computation
+
+phonon_supercell_fine type=INTEGER dim=3 current_value='1 1 1'
+Supercell in which to compute phonons. It should be greater or equal to phonon_s-
+upercell.
+
+test type=LOGICAL scalar current_value=F
+test consistency of forces/virial by comparing to finite differences
+
+n_test type=LOGICAL scalar current_value=F
+test consistency of forces/virial by comparing to finite differences using Noam'-
+s method
+
+test_dir_field type=STRING scalar current_value=
+field containing vectors along which to displace atoms for gradient test
+
+relax type=LOGICAL scalar current_value=F
+relax configuration with respect to positions (if F/forces is set) and unit cell
+vectors (if V/virial is set)
+
+relax_print_filename type=STRING scalar current_value=
+file to print positions along relaxation trajectory, xyz or nc format
+
+relax_iter type=INTEGER scalar current_value=1000
+max number of iterations for relaxation
+
+relax_tol type=REAL scalar current_value=0.001
+tolerance for convergence of relaxation
+
+relax_eps type=REAL scalar current_value=0.0001
+estimate of energy reduction for first step of relaxation
+
+relax_rattle type=REAL scalar current_value=0.0
+rattle the atomic positions with a uniform random variate of this magnitude befo-
+re relaxing
+
+relax_print_interval type=INTEGER scalar current_value=1
+Frequency for printing trajectory
+
+init_args type=STRING scalar current_value=
+string arguments for initializing potential
+
+bulk_scale_filename type=STRING scalar current_value=
+optional bulk structure for calculating space and energy rescaling
+
+calc_args type=STRING scalar current_value=
+string arguments for potential calculation
+
+pre_relax_calc_args type=STRING scalar current_value=
+string arguments for call to potential_calc that happens before relax.  Useful
+if first call should generate something like PSF file, but later calls should
+use the previously generated file
+
+relax_hydrostatic_strain type=LOGICAL scalar current_value=F
+if virial and relax are set, constrain to hydrostatic strain
+
+relax_lattice_fix type=REAL dim=9 current_value='0.0 0.0 0.0   0.0 0.0 0.0   0.0 0.0 0.0'
+if virial and relax are set, constrain lattice parameter matrix where this is
+/= 0.  Doesn't work as expected in general, although definitely OK for orthogona-
+l lattice vectors aligned with coordinate axes
+
+verbosity type=STRING scalar current_value=NORMAL
+verbosity level - SILENT, NORMAL, VERBOSE, NERD, ANALYSIS
+
+fire_minim_dt0 type=REAL scalar current_value=1.0
+if using FIRE minim, initial value of time step
+
+fire_minim_dt_max type=REAL scalar current_value=20.0
+if using FIRE minim, maximum value of time step
+
+cg_n_precond type=LOGICAL scalar current_value=F
+activate preconditioner for cg_n minim routine.  Probably a bad idea if you have
+many atoms or a cheap IP, because it inverts a dense 3N x 3N matrix
+
+precond_minim_method type=STRING scalar current_value=preconLBFGS
+preconditioner minimization method for minim_method=precon, preconLBFGS or preco-
+nCG
+
+precond_method type=STRING scalar current_value=ID
+preconditioner method for preconditioner, right now ID or LJ or
+C1
+
+precond_e_method type=STRING scalar current_value=basic
+preconditioner method for summing energy: basic, kahan, doublekahan (kahan type
+only when local energy is available).
+
+precond_cutoff type=REAL scalar current_value=-1.0
+cutoff distance for sparse preconditioner, cutoff(pot) if <
+0.0
+
+precond_len_scale type=REAL scalar current_value=-1.0
+len scale for preconditioner, cutoff(pot) if <=
+0.0
+
+precond_bulk_modulus type=REAL scalar current_value=0.625
+bulk modulus for preconditioner scaling
+
+precond_number_density type=REAL scalar current_value=0.1
+number density for preconditioner scaling
+
+precond_auto_mu type=LOGICAL scalar current_value=F
+use auto
+mu
+
+precond_e_scale type=REAL scalar current_value=5.0
+energy scale for preconditioner
+
+precond_res2 type=REAL scalar current_value=1e-5
+residual^2 error for preconditioner inversion
+
+precond_infoverride type=REAL scalar current_value=0.5
+override the max inf norm of the step in precon_minim, can be decreased to avoid
+stepping into non-physical configurations if necessary
+
+precond_conv_method type=STRING scalar current_value=2norm
+Switch to 'infnorm' if desired
+
+dimer_at type=STRING scalar current_value=
+second endpoint for dimer initialization
+
+minim_method type=STRING scalar current_value=cg
+method for relaxation: sd, sd2, cg, pcg, lbfgs, cg_n, fire, precond
+
+linmin_method type=STRING scalar current_value=default
+linmin method for relaxation (NR_LINMIN, FAST_LINMIN, LINMIN_DERIV for minim_met-
+hod=cg, standard or basic for minim_method=precon)
+
+iso_pressure type=REAL scalar current_value=0.0
+hydrostatic pressure for relaxation
+
+diag_pressure type=REAL dim=3 current_value='0.0 0.0 0.0'
+diagonal but nonhydrostatic stress for relaxation
+
+pressure type=REAL dim=9 current_value='0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0'
+general off-diagonal stress for relaxation
+
+cutoff type=REAL scalar current_value=-1.0
+if >= 0, value of cutoff to use, overriding value given by potential.  Useful
+when neighbor calculations are needed for calculating a PSF file, even though
+FilePot claims to need cutoff=0
+
+cutoff_skin type=REAL scalar current_value=0.5
+Amount to add to potential cutoff when calculating connectivity. Default 0.5.
+
+create_residue_labels type=LOGICAL scalar current_value=F
+if true, create residue labels (for CP2K) before calling calc
+
+fill_in_mass type=LOGICAL scalar current_value=F
+if true, fill in mass property
+
+hack_restraint_i type=INTEGER dim=2 current_value='0 0'
+indices of 2 atom to apply restraint potential
+to
+
+hack_restraint_k type=REAL scalar current_value=0.0
+strength of restraint potential
+
+hack_restraint_r type=REAL scalar current_value=0.0
+mininum energy distance of restraint potential
+
+descriptor_str type=STRING scalar current_value=
+Descriptor initialisation string
+
+do_grad_descriptor type=LOGICAL scalar current_value=F
+Evaluate derivative of descriptors?
+
+EvsV type=LOGICAL scalar current_value=F
+compute energy vs volume curve
+
+EvsV_dVfactor type=REAL scalar current_value=1.1
+multiplier to use when increasing the volume at each step of EvsV
+
+EvsV_NdVsteps type=INTEGER scalar current_value=1
+number of times to increase the volume when doing EvsV
+
+netcdf4 type=LOGICAL scalar current_value=F
+if true, write trajectories in NetCDF4 (HDF5, compressed) format
+
+output_file type=STRING scalar current_value=stdout
+file to send output
+to
+
+output_flush type=LOGICAL scalar current_value=F
+if true, always flush output
+
+real_format type=STRING scalar current_value=%16.8f
+real format in XYZ file
+
+SYSTEM ABORT: Run without --help
+STOP 1
