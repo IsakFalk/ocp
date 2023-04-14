@@ -1,0 +1,46 @@
+dataset:
+  train:
+    # path to extxyz files
+    src: data/luigi/splits/formula=Fe40N2,surface=110,driver=nn-sp,bias=metad_train.xyz
+    # If we want to normalize each target value, i.e. subtract the mean and
+    # divide by standard deviation, then those 'target_mean' and 'target_std'
+    # statistics for energies and 'grad_target_mean' and 'grad_target_std'
+    # statistics for forces need to be specified here for the train split.
+    normalize_labels: True
+  val:
+    # path to extxyz files
+    src: data/luigi/splits/formula=Fe40N2,surface=110,driver=nn-sp,bias=metad_val.xyz
+  test:
+    # path to extxyz files
+    src: data/luigi/splits/formula=Fe40N2,surface=110,driver=nn-sp,bias=metad_test.xyz
+
+model:
+  gap_params:
+    name: soap
+    atom_sigma: 0.5
+    l_max: 2
+    n_max: 2
+    cutoff: 6.0
+    cutoff_transition_width: 1.0
+    delta: 1.0
+    covariance_type: dot_product
+    n_sparse: 1000
+    zeta: 4
+    energy_scale: 1.0
+    atom_gaussian_width: 1.0
+  other_params:
+    default_sigma: [0.0001, 0.002, 0.0, 0.0]
+    e0: 0.0
+
+# Values for logger, such as tagging and name of run
+logger:
+  tags: []
+  name: "gap"
+
+task:
+  train: True
+  validate: True
+  test: True
+  predict: ["train", "val", "test"]
+
+runner: "GAP"
