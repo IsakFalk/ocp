@@ -4,6 +4,7 @@ Copyright (c) Facebook, Inc. and its affiliates.
 This source code is licensed under the MIT license found in the
 LICENSE file in the root directory of this source tree.
 """
+import logging
 import warnings
 
 warnings.filterwarnings("ignore", module="torch_geometric")
@@ -38,3 +39,5 @@ if __name__ == "__main__":
 
     runner.setup()
     runner.run()
+    logging.info("Done!")
+    logging.info(f"Results saved to: {runner.trainer.base_path}")

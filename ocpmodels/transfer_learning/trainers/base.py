@@ -65,10 +65,17 @@ class BaseTrainer:
         # TODO: Move this to a common method
         pass
 
-    def load_dataset(self):
-        # TODO: Handle datasets commonly and then do internal conversions after
-        pass
+    def load_datasets(self):
+        self.datasets = {}
+        for split in ["train", "val", "test"]:
+            _, dataset, num_frames, num_atoms = load_xyz_to_pyg_data(
+                self.dataset_config[split]["src"], ATOMS_TO_GRAPH_KWARGS[self.config.get("model", "schnet")]
+            )
+            self.datasets[split] = dataset
+            self.config["dataset"][split]["num_frames"] = num_frames
+            self.config["dataset"][split]["num_atoms"] = num_atoms
 
+    # TODO: Fix this since we are now loading list of data
     def load_normalizers(self):
         self.normalizer = self.config["dataset"]["train"]
         self.normalizers = {}
@@ -80,7 +87,7 @@ class BaseTrainer:
                     device=self.device,
                 )
             else:
-                y = self.datasets["train"].y.clone().detach()
+                y = torch.tensor(np.array([data.y for data in self.datasets["train"]])).to(self.device)
                 self.normalizers["target"] = Normalizer(
                     mean=y.mean().float(),
                     std=y.std().float(),
@@ -93,7 +100,7 @@ class BaseTrainer:
                     device=self.device,
                 )
             else:
-                forces = self.datasets["train"].force.clone().detach()
+                forces = torch.cat([data.force.clone().detach() for data in self.datasets["train"]], dim=0)
                 self.normalizers["grad_target"] = Normalizer(
                     mean=0.0,
                     std=forces.std().float(),
