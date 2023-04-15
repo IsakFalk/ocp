@@ -118,3 +118,4 @@ EXTRA.org
 *.png
 pyrightconfig.json
 **/predictions/**/*
+runs/**/*

@@ -45,7 +45,6 @@ class BaseTrainer:
             self.config["dataset"][split]["num_frames"] = num_frames
             self.config["dataset"][split]["num_atoms"] = num_atoms
 
-    # TODO: Fix this since we are now loading list of data
     def load_normalizers(self):
         self.normalizer = self.config["dataset"]["train"]
         self.normalizers = {}
@@ -92,3 +91,7 @@ class BaseTrainer:
     def _load_dataset_internal(self):
         pass
         # Here we will make it into the internal version
+
+    def compute_final_metrics(self, split):
+        """Compute final metrics for all metrics defined"""
+        pass

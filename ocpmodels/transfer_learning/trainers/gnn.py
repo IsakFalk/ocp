@@ -1,38 +1,22 @@
 import copy
 import datetime
 import logging
-import random
-import subprocess
-from abc import ABC, abstractmethod
 from pathlib import Path
 from pprint import pprint
 
-import ase.io
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch_geometric
-from torch_geometric.data import Batch
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from ocpmodels.common.utils import save_checkpoint
-from ocpmodels.modules.normalizer import Normalizer
 from ocpmodels.modules.scheduler import LRScheduler
-from ocpmodels.transfer_learning.common.logger import WandBLogger
 from ocpmodels.transfer_learning.common.utils import (
-    ATOMS_TO_GRAPH_KWARGS,
     aggregate_metric,
-    load_xyz_to_pyg_batch,
-    load_xyz_to_pyg_data,
     torch_tensor_to_npy,
-)
-from ocpmodels.transfer_learning.models.distribution_regression import (
-    GaussianKernel,
-    KernelMeanEmbeddingRidgeRegression,
-    LinearMeanEmbeddingKernel,
-    median_heuristic,
 )
 
 from ..loaders import BaseLoader
@@ -53,6 +37,7 @@ class GNNTrainer(BaseTrainer):
         name="trainer",
         run_dir="checkpoints",
         is_debug=False,
+        hide_eval_progressbar=False,
     ):
         self.task_config = copy.deepcopy(task_config)
         self.model_config = copy.deepcopy(model_config)  # Config for model
@@ -65,6 +50,7 @@ class GNNTrainer(BaseTrainer):
         self.print_every = print_every
         self.seed = seed
         self.run_dir = run_dir
+        self.path_run_dir = Path(self.run_dir)
         self.timestamp_id = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         # Setup paths
         self.base_path = self.path_run_dir / self.timestamp_id
@@ -73,6 +59,7 @@ class GNNTrainer(BaseTrainer):
         self.predictions_dir = self.base_path / "predictions"
         self.predictions_dir.mkdir(parents=True, exist_ok=True)
         self.is_debug = is_debug
+        self.hide_eval_progressbar = hide_eval_progressbar
         self.epoch = 0
         self.step = 0
 
@@ -101,12 +88,14 @@ class GNNTrainer(BaseTrainer):
         self.load_logger()
         self.load_datasets()
         self.load_normalizers()
+        self._load_data_internal()
         self.load_model()
         self.load_loss()
         self.load_optimizer()
         self.load_extras()
 
     def _load_data_internal(self):
+        self.loaders = {}
         for split in ["train", "val", "test"]:
             self.loaders[split] = self.get_dataloader(self.datasets[split])
 
@@ -202,7 +191,7 @@ class GNNTrainer(BaseTrainer):
     def train(self, disable_eval_tqdm=False):
         # ensure_fitted(self._unwrapped_model, warn=True)
 
-        eval_every = self.config["optim"].get("eval_every", len(self.train_loader))
+        eval_every = self.config["optim"].get("eval_every", len(self.loaders["train"]))
         checkpoint_every = self.config["optim"].get("checkpoint_every", eval_every)
         # primary_metric = self.config["task"].get(
         #     "primary_metric", self.evaluator.task_primary_metric[self.name]
@@ -215,7 +204,7 @@ class GNNTrainer(BaseTrainer):
         self.step = 0
         for epoch in range(self.config["optim"]["max_epochs"]):
             self.epoch = epoch
-            for batch in self.train_loader:
+            for batch in self.loaders["train"]:
                 self.model.train()
 
                 # Forward, loss, backward.
@@ -252,7 +241,7 @@ class GNNTrainer(BaseTrainer):
 
                 # Evaluate on val set every `eval_every` iterations.
                 if self.step % eval_every == 0:
-                    if self.val_loader is not None:
+                    if self.loaders["val"] is not None:
                         val_metrics = self.validate(
                             split="val",
                             disable_tqdm=disable_eval_tqdm,
@@ -278,32 +267,18 @@ class GNNTrainer(BaseTrainer):
             if checkpoint_every == -1:
                 self.save(checkpoint_file="checkpoint.pt", training_state=True)
 
-        # Get predictions of best model
+        # Retrieve best model
         self.model.load_state_dict(torch.load(self.checkpoint_dir / "best_checkpoint.pt")["state_dict"])
 
         # Save best performance
-        if self.task_config.get("validate", True):
-            self.validate(
-                split="val",
-                disable_tqdm=False,
-            )
-        if self.task_config.get("test", True):
-            self.validate(
-                split="test",
-                disable_tqdm=False,
-            )
+        for split in self.task_config["validate"]:
+            self.validate(split=split, disable_tqdm=self.hide_eval_progressbar, final=True)
+
         # Save best predictions
         if "predict" in self.task_config:
             array_dict = {}
             for split in self.task_config["predict"]:
-                if split == "train":
-                    loader = self.train_loader
-                elif split == "val":
-                    loader = self.val_loader
-                elif split == "test":
-                    loader = self.test_loader
-
-                out = self.predict(loader, disable_tqdm=False)
+                out = self.predict(split, disable_tqdm=self.hide_eval_progressbar)
                 out = {k: torch_tensor_to_npy(v) for k, v in out.items()}
                 for key, val in out.items():
                     array_dict[f"{split}_{key}"] = val
@@ -314,9 +289,9 @@ class GNNTrainer(BaseTrainer):
                 self.logger.log_predictions(self.predictions_dir)
 
     @torch.no_grad()
-    def validate(self, split="val", disable_tqdm=False):
+    def validate(self, split="val", disable_tqdm=False, final=False):
         self.model.eval()
-        loader = self.val_loader if split == "val" else self.test_loader
+        loader = self.loaders[split]
 
         metrics = {"energy_loss": [], "forces_loss": []}
         for i, batch in tqdm(
@@ -330,7 +305,10 @@ class GNNTrainer(BaseTrainer):
             # Compute metrics.
             metrics = self._compute_metrics(out, batch, metrics)
 
-            log_dict = {k: aggregate_metric(metrics[k]) for k in metrics}
+            if final:
+                log_dict = {k + "_final": aggregate_metric(metrics[k]) for k in metrics}
+            else:
+                log_dict = {k: aggregate_metric(metrics[k]) for k in metrics}
             log_dict.update({"epoch": self.epoch})
             log_str = ["{}: {:.4f}".format(k, v) for k, v in log_dict.items()]
             logging.info(", ".join(log_str))
@@ -436,12 +414,13 @@ class GNNTrainer(BaseTrainer):
     @torch.no_grad()
     def predict(
         self,
-        data_loader,
+        split,
         disable_tqdm=False,
     ):
+        loader = self.loaders[split]
         logging.info("Predicting.")
         assert isinstance(
-            data_loader,
+            loader,
             (
                 torch.utils.data.dataloader.DataLoader,
                 torch_geometric.data.Batch,
@@ -449,14 +428,14 @@ class GNNTrainer(BaseTrainer):
             ),
         )
 
-        if isinstance(data_loader, torch_geometric.data.Batch):
-            data_loader = [[data_loader]]
+        if isinstance(loader, torch_geometric.data.Batch):
+            loader = [[loader]]
 
         self.model.eval()
         predictions = {"energy": [], "forces": []}
         for i, batch in tqdm(
-            enumerate(data_loader),
-            total=len(data_loader),
+            enumerate(loader),
+            total=len(loader),
             disable=disable_tqdm,
         ):
             out = self._forward(batch)
@@ -464,7 +443,7 @@ class GNNTrainer(BaseTrainer):
             out["energy"] = self.normalizers["target"].denorm(out["energy"])
             out["forces"] = self.normalizers["grad_target"].denorm(out["forces"])
             predictions["energy"].extend(out["energy"].detach())
-            predictions["forces"].extend(out["forces"].detach())
+            predictions["forces"].extend(out["forces"].detach().reshape(-1, self.dataset_config[split]["num_atoms"], 3))
 
         predictions["energy"] = torch.stack(predictions["energy"])
         predictions["forces"] = torch.stack(predictions["forces"])

@@ -75,13 +75,13 @@ class GAPRunner(BaseRunner):
     def run(self):
         if self.config["task"].get("train", True):
             self.trainer.train()
-        # We first predict since if we validate we need to reuse the predictions
+        for split in self.config["task"]["validate"]:
+            self.trainer.validate(split=split)
+        # Note that we predict twice, so there is some redundancy in computation here
         array_dict = {}
         for split in self.config["task"]["predict"]:
             out = self.trainer.predict(split)
             out = {k: torch_tensor_to_npy(v) for k, v in out.items()}
-            print(out["energy"].shape)
-            print(out["forces"].shape)
             for key, val in out.items():
                 array_dict[f"{split}_{key}"] = val
 
@@ -90,9 +90,6 @@ class GAPRunner(BaseRunner):
 
         if not self.trainer.is_debug:
             self.trainer.logger.log_predictions(self.trainer.predictions_dir)
-
-        for split in self.config["task"]["validate"]:
-            self.trainer.validate(split=split)
 
 
 class GNNRunner(BaseRunner):
@@ -109,6 +106,7 @@ class GNNRunner(BaseRunner):
             name=self.config["logger"]["name"],
             run_dir=self.run_args.run_dir,
             is_debug=self.run_args.debug,
+            hide_eval_progressbar=self.config.get("hide_eval_progressbar", False),
         )
         # TODO: add checkpoint resuming
 

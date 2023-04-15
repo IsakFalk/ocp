@@ -81,7 +81,7 @@ class GAPTrainer(BaseTrainer):
             self.cpu = True
 
         self.config = {
-            "model": self.model_config,
+            "model_attributes": self.model_config,
             "logger": self.logger_config,
             "name": name,
             "timestamp_id": self.timestamp_id,
@@ -109,18 +109,6 @@ class GAPTrainer(BaseTrainer):
         self.load_model()
         self.load_loss()
 
-    def load_datasets(self):
-        # for split in ["train", "val", "test"]
-        self.train_data_path = self.config["dataset"]["train"]["src"]
-        with open(self.train_data_path, "r") as f:
-            self.config["dataset"]["train"]["num_atoms"] = int(f.readline().strip("\n"))
-        self.val_data_path = self.config["dataset"]["val"]["src"]
-        with open(self.val_data_path, "r") as f:
-            self.config["dataset"]["val"]["num_atoms"] = int(f.readline().strip("\n"))
-        self.test_data_path = self.config["dataset"]["test"]["src"]
-        with open(self.test_data_path, "r") as f:
-            self.config["dataset"]["test"]["num_atoms"] = int(f.readline().strip("\n"))
-
     def load_model(self):
         pass
 
@@ -132,12 +120,12 @@ class GAPTrainer(BaseTrainer):
         }
 
     def train(self):
-        self.gap_kwargs = self.config["model"]["gap_params"]
-        self.gap_name = self.config["model"]["gap_params"].pop("name")
+        self.gap_kwargs = self.config["model_attributes"]["gap_params"]
+        self.gap_name = self.config["model_attributes"]["gap_params"].pop("name")
         self.gap_kw_string = self._build_cmd_string(self.gap_kwargs)
         self.gap_kw_string = "gap=" + "{" + f"{self.gap_name} " + self.gap_kw_string + "}"
 
-        self.other_kwargs = self.config["model"]["other_params"]
+        self.other_kwargs = self.config["model_attributes"]["other_params"]
         self.other_kw_string = self._build_cmd_string(self.other_kwargs)
 
         self.gap_fit_kw_string = " ".join([self.gap_kw_string, self.other_kw_string])
@@ -147,73 +135,53 @@ class GAPTrainer(BaseTrainer):
         cmd = ["gap_fit"]
         cmd.append("do_copy_at_file=F")
         cmd.append("sparse_separate_file=T")
-        cmd.append(f"at_file={self.train_data_path}")
+        cmd.append(f"at_file={self.dataset_config['train']['src']}")
         cmd.append(f"gap_file={self.aux_dir / 'gap_train_output.xml'}")
         cmd.append(self.gap_fit_kw_string)
-        pprint(cmd)
         subprocess.run(cmd, check=True)
 
     def validate(self, split="val"):
-        pass
-        # self.model.eval()
-        # dataset = self.val_dataset if split == "val" else self.test_dataset
+        metrics = {"energy_loss": [], "forces_loss": []}
+        predictions = self.predict(split)
+        # Forward.
+        metrics = self._compute_metrics(predictions, self.datasets[split], metrics)
 
-        # metrics = {"energy_loss": [], "forces_loss": []}
-        # # Forward.
-        # out = self._forward(dataset, self.dataset_config[split]["num_atoms"])
+        log_dict = {k: aggregate_metric(metrics[k]) for k in metrics}
+        log_str = ["{}: {:.4f}".format(k, v) for k, v in log_dict.items()]
+        logging.info(", ".join(log_str))
 
-        # # Compute metrics.
-        # metrics = self._compute_metrics(out, dataset, metrics)
+        if self.logger is not None:
+            self.logger.log(
+                log_dict,
+                step=0,
+                split=split,
+            )
 
-        # log_dict = {k: aggregate_metric(metrics[k]) for k in metrics}
-        # log_str = ["{}: {:.4f}".format(k, v) for k, v in log_dict.items()]
-        # logging.info(", ".join(log_str))
+        return metrics
 
-        # if self.logger is not None:
-        #     self.logger.log(
-        #         log_dict,
-        #         step=0,
-        #         split=split,
-        #     )
+    def _compute_metrics(self, out, batch_list_or_batch, metrics):
+        # NOTE: Removed some additional things we probably want
+        if not isinstance(batch_list_or_batch, list):
+            batch_list = [batch_list_or_batch]
+        else:
+            batch_list = batch_list_or_batch
 
-        # return metrics
+        losses = {}
 
-    def _compute_metrics(self, out, metrics):
-        pass
-        # # NOTE: Removed some additional things we probably want
-        # if not isinstance(batch_list_or_batch, list):
-        #     batch_list = [batch_list_or_batch]
-        # else:
-        #     batch_list = batch_list_or_batch
+        # Energy loss.
+        # TODO: Remove unnecessary reshapes
+        # NOTE: we do not do any normalization for GAP
+        energy_target = torch.tensor(np.array([batch.y for batch in batch_list])).float()
+        losses["energy"] = self.loss_fn["energy"](out["energy"], energy_target.reshape(-1))
+        # Force loss.
+        force_target = torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0).float()
+        losses["forces"] = self.loss_fn["forces"](out["forces"].reshape(-1, 3), force_target.reshape(-1, 3))
 
-        # losses = {}
-
-        # # Energy loss.
-        # # TODO: Remove unnecessary reshapes
-        # energy_target = torch.cat([batch.y.to(self.device) for batch in batch_list], dim=0).float()
-        # losses["energy"] = self.loss_fn["energy"](
-        #     self.normalizers["target"].denorm(out["energy"]).reshape(-1), energy_target.reshape(-1)
-        # )
-        # # Force loss.
-        # if self.config["model_attributes"].get("regress_forces", True):
-        #     force_target = torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0).float()
-        #     losses["forces"] = self.loss_fn["forces"](
-        #         self.normalizers["grad_target"].denorm(out["forces"]).reshape(-1, 3), force_target.reshape(-1, 3)
-        #     )
-
-        # # Sanity check to make sure the compute graph is correct.
-        # for lc in losses.values():
-        #     assert hasattr(lc, "grad_fn")
-
-        # # Note that loss is normalized
-        # metrics["energy_loss"].append(losses["energy"].item())
-        # if self.config["model_attributes"].get("regress_forces", True):
-        #     metrics["forces_loss"].append(losses["forces"].item())
-        # metrics["loss"] = (
-        #     self.config["optim"].get("energy_loss_coefficient") * losses["energy"]
-        #     + self.config["optim"].get("force_loss_coefficient") * losses["forces"]
-        # )
-        # return metrics
+        # Note that loss is normalized
+        metrics["energy_loss"].append(losses["energy"].item())
+        if self.config["model_attributes"].get("regress_forces", True):
+            metrics["forces_loss"].append(losses["forces"].item())
+        return metrics
 
     def predict(
         self,
@@ -225,12 +193,7 @@ class GAPTrainer(BaseTrainer):
         # and using the dataset path we generate predictions
         # We finally read these in again
         predictions = {"energy": [], "forces": []}
-        if split == "train":
-            data_path = self.train_data_path
-        elif split == "val":
-            data_path = self.val_data_path
-        elif split == "test":
-            data_path = self.test_data_path
+        data_path = self.dataset_config[split]["src"]
         cmd = ["quip"]
         cmd.append("E=T")
         cmd.append("F=T")
@@ -244,7 +207,11 @@ class GAPTrainer(BaseTrainer):
         subprocess.run(_cmd, check=True, shell=True)
         pred = ase.io.read(self.aux_dir / f"{split}_predictions.xyz", index=":")
         pred_energy = torch.tensor(np.array([x.get_potential_energy() for x in pred]))
-        pred_forces = torch.tensor(np.array([x.get_forces() for x in pred]))
+        # NOTE: GAP uses force instead of forces (using get_forces is data leakage!!)
+        forces = []
+        for atom in pred:
+            forces.append(atom.arrays["force"])
+        pred_forces = torch.tensor(np.array(forces))
         predictions = {
             "energy": pred_energy,
             "forces": pred_forces,

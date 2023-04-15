@@ -24,10 +24,14 @@ model:
   # Model attributes go here, e.g. no. of layers, no. of hidden channels,
   # embedding functions, cutoff radius, no. of neighbors, etc.
   # This list of params will look different depending on the model.
-  hidden_channels: 256
-  num_filters: 64
-  num_interactions: 3
-  num_gaussians: 200
+  # hidden_channels: 256
+  # num_filters: 64
+  # num_interactions: 3
+  # num_gaussians: 200
+  hidden_channels: 4
+  num_filters: 4
+  num_interactions: 1
+  num_gaussians: 5
   # 'otf_graph' specifies whether graph edges should be computed on the fly
   # or they already exist in the preprocessed LMDBs. If unsure, set it to True.
   otf_graph: True                                                               # True or False
@@ -93,15 +97,13 @@ optim:
   #factor: 0.8
   #patience: 3
   # No. of epochs to train for.
-  max_epochs: 100
-
-hide_eval_progressbar: True
+  max_epochs: 3
 
 task:
   train: True
   validate: ["train", "val", "test"]
   predict: ["train", "val", "test"]
 
-run_dir: "checkpoints"
-
 runner: "GNN"
+
+hide_eval_progressbar: True
