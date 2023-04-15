@@ -60,7 +60,7 @@ cmd.append(f"at_file={TRAIN_DATA_PATH}")
 cmd.append(f"gap_file={output_dir / 'gap_train_output.xml'}")
 cmd.append(gap_fit_kw_string)
 
-# subprocess.run(cmd, check=True)
+subprocess.run(cmd, check=True)
 
 # Get predictions on train, val, and etst
 for split in ["train", "val", "test"]:
@@ -95,3 +95,6 @@ train_pred = read(output_dir / "train_predictions.xyz", index=":")
 # test_pred = read(output_dir / "test_predictions.xyz", index=":")
 train_pred_energy = torch.tensor(np.array([x.get_potential_energy() for x in train_pred]))
 train_pred_forces = torch.tensor(np.array([x.get_forces() for x in train_pred]))
+
+with open(TRAIN_DATA_PATH, "r") as f:
+    num_atoms = int(f.readline().strip("\n"))
