@@ -253,7 +253,6 @@ class Trainer:
 
     def load_extras(self):
         self.scheduler = LRScheduler(self.optimizer, self.config["optim"])  # for now no decay
-        pass
 
     def update_best(
         self,

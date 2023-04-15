@@ -4,39 +4,15 @@ Currently this shows how to load a model and get the intermediate representation
 from the model. We use this to output the distance and kernel matrices for the system over time
 and atoms.
 """
-import copy
-import logging
-import random
 from pathlib import Path
 from pprint import pprint
 
-import matplotlib.pyplot as plt
 import numpy as np
-import quippy
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch_geometric
-from torch_geometric.data import Batch
-from torch_geometric.loader import DataLoader
-from tqdm import tqdm
 
-from ocpmodels.common.utils import save_checkpoint
-from ocpmodels.modules.normalizer import Normalizer
-from ocpmodels.modules.scheduler import LRScheduler
-from ocpmodels.transfer_learning.common.logger import WandBLogger
 from ocpmodels.transfer_learning.common.utils import (
     ATOMS_TO_GRAPH_KWARGS,
-    aggregate_metric,
     load_xyz_to_pyg_batch,
-    load_xyz_to_pyg_data,
-    torch_tensor_to_npy,
-)
-from ocpmodels.transfer_learning.models.distribution_regression import (
-    GaussianKernel,
-    KernelMeanEmbeddingRidgeRegression,
-    LinearMeanEmbeddingKernel,
-    median_heuristic,
 )
 
 ### Load data

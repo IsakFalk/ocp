@@ -100,23 +100,15 @@ class GNNTrainer(BaseTrainer):
         self.load_seed_from_config()
         self.load_logger()
         self.load_datasets()
+        self.load_normalizers()
         self.load_model()
         self.load_loss()
-        self.load_normalizers()
         self.load_optimizer()
         self.load_extras()
 
-    def load_datasets(self):
-        self.datasets = {}
-        self.loaders = {}
+    def _load_data_internal(self):
         for split in ["train", "val", "test"]:
-            _, dataset, num_frames, num_atoms = load_xyz_to_pyg_data(
-                self.dataset_config[split]["src"], ATOMS_TO_GRAPH_KWARGS[self.config["model"]]
-            )
-            self.datasets[split] = dataset
-            self.loader[split] = self.get_dataloader(self.dataset)
-            self.config["dataset"][split]["num_frames"] = num_frames
-            self.config["dataset"][split]["num_atoms"] = num_atoms
+            self.loaders[split] = self.get_dataloader(self.datasets[split])
 
     def get_dataloader(self, list_of_data):
         loader = DataLoader(

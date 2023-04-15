@@ -1,49 +1,19 @@
-import copy
-import datetime
-import logging
 import random
-import subprocess
-from abc import ABC, abstractmethod
-from pathlib import Path
-from pprint import pprint
 
-import ase.io
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch_geometric
-from torch_geometric.data import Batch
-from torch_geometric.loader import DataLoader
-from tqdm import tqdm
 
-from ocpmodels.common.utils import save_checkpoint
 from ocpmodels.modules.normalizer import Normalizer
-from ocpmodels.modules.scheduler import LRScheduler
 from ocpmodels.transfer_learning.common.logger import WandBLogger
 from ocpmodels.transfer_learning.common.utils import (
     ATOMS_TO_GRAPH_KWARGS,
-    aggregate_metric,
-    load_xyz_to_pyg_batch,
     load_xyz_to_pyg_data,
-    torch_tensor_to_npy,
 )
-from ocpmodels.transfer_learning.models.distribution_regression import (
-    GaussianKernel,
-    KernelMeanEmbeddingRidgeRegression,
-    LinearMeanEmbeddingKernel,
-    median_heuristic,
-)
-
-from ..loaders import BaseLoader
 
 
 # TODO: Move common methods here especially metric calculations
 # Should decouple load_losses from metrics
 class BaseTrainer:
-    def __init__(self):
-        pass
-
     def load_seed_from_config(self):
         # https://pytorch.org/docs/stable/notes/randomness.html
         if self.seed is None:

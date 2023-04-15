@@ -9,12 +9,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from dscribe.descriptors import ACSF, SOAP
+from dscribe.descriptors import ACSF
 from sklearn.dummy import DummyRegressor
 from sklearn.linear_model import RidgeCV
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import cross_val_score, train_test_split
-from sklearn.preprocessing import StandardScaler
 
 from transfer_learning.transfer_learning.common.utils import (
     ATOMS_TO_GRAPH_KWARGS,

@@ -38,6 +38,7 @@ pylint = "*"
 pyflakes = "*"
 isort = "*"
 wandb = "*"
+autoflake = "*"
 jupyter = "*"
 
 [requires]
