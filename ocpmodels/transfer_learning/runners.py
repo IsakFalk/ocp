@@ -3,7 +3,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from ocpmodels.transfer_learning.common.utils import torch_tensor_to_npy
-from ocpmodels.transfer_learning.trainers import GNNTrainer, MEKRRTrainer
+from ocpmodels.transfer_learning.trainers.gap import GAPTrainer
+from ocpmodels.transfer_learning.trainers.gnn import GNNTrainer
+from ocpmodels.transfer_learning.trainers.mekrr import MEKRRTrainer
 
 
 class BaseRunner(ABC):
@@ -39,34 +41,21 @@ class MEKRRRunner(BaseRunner):
     def run(self):
         if self.config["task"].get("train", True):
             self.trainer.train()
-        if self.config["task"].get("validate", True):
-            self.trainer.validate(
-                split="val",
-            )
-        if self.config["task"].get("test", True):
-            self.trainer.validate(
-                split="test",
-            )
-        if "predict" in self.config["task"]:
-            array_dict = {}
-            for split in self.config["task"]["predict"]:
-                if split == "train":
-                    dataset = self.trainer.train_dataset
-                elif split == "val":
-                    dataset = self.trainer.val_dataset
-                elif split == "test":
-                    dataset = self.trainer.test_dataset
-                num_atoms = self.trainer.config["dataset"][f"{split}"]["num_atoms"]
-                out = self.trainer.predict(dataset, num_atoms)
-                out = {k: torch_tensor_to_npy(v) for k, v in out.items()}
-                for key, val in out.items():
-                    array_dict[f"{split}_{key}"] = val
+        for split in self.config["task"]["validate"]:
+            self.trainer.validate(split=split)
 
-            with open(self.trainer.predictions_dir / "predictions.npz", "wb") as f:
-                np.savez(f, **array_dict)
+        array_dict = {}
+        for split in self.config["task"]["predict"]:
+            out = self.trainer.predict(split)
+            out = {k: torch_tensor_to_npy(v) for k, v in out.items()}
+            for key, val in out.items():
+                array_dict[f"{split}_{key}"] = val
 
-            if not self.trainer.is_debug:
-                self.trainer.logger.log_predictions(self.trainer.predictions_dir)
+        with open(self.trainer.predictions_dir / "predictions.npz", "wb") as f:
+            np.savez(f, **array_dict)
+
+        if not self.trainer.is_debug:
+            self.trainer.logger.log_predictions(self.trainer.predictions_dir)
 
 
 class GAPRunner(BaseRunner):
@@ -86,16 +75,24 @@ class GAPRunner(BaseRunner):
     def run(self):
         if self.config["task"].get("train", True):
             self.trainer.train()
-        if self.config["task"].get("validate", True):
-            self.trainer.validate(
-                split="val",
-            )
-        if self.config["task"].get("test", True):
-            self.trainer.validate(
-                split="test",
-            )
-        if "predict" in self.config["task"]:
-            self.trainer.predict(split="test")
+        # We first predict since if we validate we need to reuse the predictions
+        array_dict = {}
+        for split in self.config["task"]["predict"]:
+            out = self.trainer.predict(split)
+            out = {k: torch_tensor_to_npy(v) for k, v in out.items()}
+            print(out["energy"].shape)
+            print(out["forces"].shape)
+            for key, val in out.items():
+                array_dict[f"{split}_{key}"] = val
+
+        with open(self.trainer.predictions_dir / "predictions.npz", "wb") as f:
+            np.savez(f, **array_dict)
+
+        if not self.trainer.is_debug:
+            self.trainer.logger.log_predictions(self.trainer.predictions_dir)
+
+        for split in self.config["task"]["validate"]:
+            self.trainer.validate(split=split)
 
 
 class GNNRunner(BaseRunner):
