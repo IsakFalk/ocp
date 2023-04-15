@@ -69,6 +69,49 @@ class BaseTrainer(ABC):
         # TODO: Handle datasets commonly and then do internal conversions after
         pass
 
+    def load_normalizers(self):
+        self.normalizer = self.config["dataset"]["train"]
+        self.normalizers = {}
+        if self.normalizer.get("normalize_labels", True):
+            if "target_mean" in self.normalizer:
+                self.normalizers["target"] = Normalizer(
+                    mean=self.normalizer["target_mean"],
+                    std=self.normalizer["target_std"],
+                    device=self.device,
+                )
+            else:
+                y = self.train_dataset.y.clone().detach()
+                self.normalizers["target"] = Normalizer(
+                    mean=y.mean().float(),
+                    std=y.std().float(),
+                    device=self.device,
+                )
+            if "grad_target_mean" in self.normalizer:
+                self.normalizers["grad_target"] = Normalizer(
+                    mean=self.normalizer["grad_target_mean"],
+                    std=self.normalizer["grad_target_std"],
+                    device=self.device,
+                )
+            else:
+                forces = self.train_dataset.force.clone().detach()
+                self.normalizers["grad_target"] = Normalizer(
+                    mean=0.0,
+                    std=forces.std().float(),
+                    device=self.device,
+                )
+                self.normalizers["grad_target"].mean.fill_(0)
+        else:
+            self.normalizers["target"] = Normalizer(
+                mean=0.0,
+                std=1.0,
+                device=self.device,
+            )
+            self.normalizers["grad_target"] = Normalizer(
+                mean=0.0,
+                std=1.0,
+                device=self.device,
+            )
+
     @abstractmethod
     def _load_dataset_internal(self):
         ...
@@ -137,54 +180,13 @@ class MEKRRTrainer(BaseTrainer):
 
         self.load()
 
-        self.normalizer = self.config["dataset"]["train"]
-        self.normalizers = {}
-        if self.normalizer.get("normalize_labels", True):
-            if "target_mean" in self.normalizer:
-                self.normalizers["target"] = Normalizer(
-                    mean=self.normalizer["target_mean"],
-                    std=self.normalizer["target_std"],
-                    device=self.device,
-                )
-            else:
-                y = self.train_dataset.y.clone().detach()
-                self.normalizers["target"] = Normalizer(
-                    mean=y.mean().float(),
-                    std=y.std().float(),
-                    device=self.device,
-                )
-            if "grad_target_mean" in self.normalizer:
-                self.normalizers["grad_target"] = Normalizer(
-                    mean=self.normalizer["grad_target_mean"],
-                    std=self.normalizer["grad_target_std"],
-                    device=self.device,
-                )
-            else:
-                forces = self.train_dataset.force.clone().detach()
-                self.normalizers["grad_target"] = Normalizer(
-                    mean=0.0,
-                    std=forces.std().float(),
-                    device=self.device,
-                )
-                self.normalizers["grad_target"].mean.fill_(0)
-        else:
-            self.normalizers["target"] = Normalizer(
-                mean=0.0,
-                std=1.0,
-                device=self.device,
-            )
-            self.normalizers["grad_target"] = Normalizer(
-                mean=0.0,
-                std=1.0,
-                device=self.device,
-            )
-
     def load(self):
         self.load_seed_from_config()
         self.load_logger()
         self.load_datasets()
         self.load_model()
         self.load_loss()
+        self.load_normalizers()
 
     def load_datasets(self):
         _, self.train_dataset, num_frames, num_atoms = load_xyz_to_pyg_batch(
@@ -673,56 +675,13 @@ class GNNTrainer(BaseTrainer):
 
         self.load()
 
-        # If we're computing gradients wrt input, set mean of normalizer to 0 --
-        # since it is lost when compute dy / dx -- and std to forward target std
-        self.normalizer = self.config["dataset"]["train"]
-        self.normalizers = dict()
-        if self.normalizer.get("normalize_labels", True):
-            if "target_mean" in self.normalizer:
-                self.normalizers["target"] = Normalizer(
-                    mean=self.normalizer["target_mean"],
-                    std=self.normalizer["target_std"],
-                    device=self.device,
-                )
-            else:
-                y = torch.tensor([data.y for data in self.train_dataset])
-                self.normalizers["target"] = Normalizer(
-                    mean=y.mean().float(),
-                    std=y.std().float(),
-                    device=self.device,
-                )
-            if "grad_target_mean" in self.normalizer:
-                self.normalizers["grad_target"] = Normalizer(
-                    mean=self.normalizer["grad_target_mean"],
-                    std=self.normalizer["grad_target_std"],
-                    device=self.device,
-                )
-            else:
-                forces = torch.cat([data.force.clone().detach() for data in self.train_dataset], dim=0)
-                self.normalizers["grad_target"] = Normalizer(
-                    mean=0.0,
-                    std=forces.std().float(),
-                    device=self.device,
-                )
-                self.normalizers["grad_target"].mean.fill_(0)
-        else:
-            self.normalizers["target"] = Normalizer(
-                mean=0.0,
-                std=1.0,
-                device=self.device,
-            )
-            self.normalizers["grad_target"] = Normalizer(
-                mean=0.0,
-                std=1.0,
-                device=self.device,
-            )
-
     def load(self):
         self.load_seed_from_config()
         self.load_logger()
         self.load_datasets()
         self.load_model()
         self.load_loss()
+        self.load_normalizers()
         self.load_optimizer()
         self.load_extras()
 
