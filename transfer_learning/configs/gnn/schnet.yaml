@@ -101,6 +101,10 @@ optim:
 
 task:
   train: True
+  train_objective:
+    energy: mse
+    forces: mse
+  primary_val_metric: forces_rmse
   validate: ["train", "val", "test"]
   predict: ["train", "val", "test"]
 
