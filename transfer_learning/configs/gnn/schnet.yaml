@@ -24,14 +24,14 @@ model:
   # Model attributes go here, e.g. no. of layers, no. of hidden channels,
   # embedding functions, cutoff radius, no. of neighbors, etc.
   # This list of params will look different depending on the model.
-  # hidden_channels: 256
-  # num_filters: 64
-  # num_interactions: 3
-  # num_gaussians: 200
-  hidden_channels: 4
-  num_filters: 4
-  num_interactions: 1
-  num_gaussians: 5
+  hidden_channels: 256
+  num_filters: 64
+  num_interactions: 3
+  num_gaussians: 200
+  #hidden_channels: 4
+  # num_filters: 4
+  # num_interactions: 1
+  # num_gaussians: 5
   # 'otf_graph' specifies whether graph edges should be computed on the fly
   # or they already exist in the preprocessed LMDBs. If unsure, set it to True.
   otf_graph: True                                                               # True or False
@@ -48,10 +48,7 @@ optim:
   num_workers: 8
   # After how many updates to run evaluation on val during training.
   # If unspecified, defaults to 1 epoch.
-  #eval_every:
-  # TODO: Add this as possibility to use
-  # Loss function to use for energies. Defaults to 'mae'.
-  ###loss_energy: mae                                                              # 'mae' or 'mse'
+  eval_every: 20
   # Loss function to use for forces. Defaults to 'mae'.
   #
   # 'l2mae' has been working well for us with a force to energy coefficient
@@ -97,7 +94,7 @@ optim:
   #factor: 0.8
   #patience: 3
   # No. of epochs to train for.
-  max_epochs: 3
+  max_epochs: 100
 
 task:
   train: True
