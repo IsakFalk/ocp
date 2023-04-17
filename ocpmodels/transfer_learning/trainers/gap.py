@@ -106,18 +106,7 @@ class GAPTrainer(BaseTrainer):
         self.load_seed_from_config()
         self.load_logger()
         self.load_datasets()
-        self.load_model()
-        self.load_loss()
-
-    def load_model(self):
-        pass
-
-    def load_loss(self):
-        # TODO: Allow for different losses
-        self.loss_fn = {
-            "energy": nn.MSELoss(),
-            "forces": nn.MSELoss(),
-        }
+        self.load_metrics()
 
     def train(self):
         self.gap_kwargs = self.config["model_attributes"]["gap_params"]
@@ -141,12 +130,20 @@ class GAPTrainer(BaseTrainer):
         subprocess.run(cmd, check=True)
 
     def validate(self, split="val"):
-        metrics = {"energy_loss": [], "forces_loss": []}
-        predictions = self.predict(split)
-        # Forward.
-        metrics = self._compute_metrics(predictions, self.datasets[split], metrics)
+        dataset = self.datasets[split]
+        num_atoms = self.dataset_config[split]["num_atoms"]
 
-        log_dict = {k: aggregate_metric(metrics[k]) for k in metrics}
+        predictions = self.predict(split)
+        targets = {
+            "energy": torch.tensor(np.array([data.y for data in dataset])).to(self.device),
+            "forces": torch.cat([data.force.clone().detach() for data in dataset], dim=0)
+            .reshape(-1, num_atoms, 3)
+            .to(self.device),
+        }
+        metrics = self.evaluator.eval(predictions, targets)
+
+        log_dict = {k: metrics[k] for k in metrics}
+        log_dict.update({"epoch": 0})
         log_str = ["{}: {:.4f}".format(k, v) for k, v in log_dict.items()]
         logging.info(", ".join(log_str))
 
@@ -159,34 +156,11 @@ class GAPTrainer(BaseTrainer):
 
         return metrics
 
-    def _compute_metrics(self, out, batch_list_or_batch, metrics):
-        # NOTE: Removed some additional things we probably want
-        if not isinstance(batch_list_or_batch, list):
-            batch_list = [batch_list_or_batch]
-        else:
-            batch_list = batch_list_or_batch
-
-        losses = {}
-
-        # Energy loss.
-        # TODO: Remove unnecessary reshapes
-        # NOTE: we do not do any normalization for GAP
-        energy_target = torch.tensor(np.array([batch.y for batch in batch_list])).float()
-        losses["energy"] = self.loss_fn["energy"](out["energy"], energy_target.reshape(-1))
-        # Force loss.
-        force_target = torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0).float()
-        losses["forces"] = self.loss_fn["forces"](out["forces"].reshape(-1, 3), force_target.reshape(-1, 3))
-
-        # Note that loss is normalized
-        metrics["energy_loss"].append(losses["energy"].item())
-        if self.config["model_attributes"].get("regress_forces", True):
-            metrics["forces_loss"].append(losses["forces"].item())
-        return metrics
-
     def predict(
         self,
         split,
     ):
+        num_atoms = self.dataset_config[split]["num_atoms"]
         logging.info(f"Predicting on {split}.")
         # Here we predict using the trained parameters from
         # gap_train_output.xml
@@ -212,9 +186,6 @@ class GAPTrainer(BaseTrainer):
         for atom in pred:
             forces.append(atom.arrays["force"])
         pred_forces = torch.tensor(np.array(forces))
-        predictions = {
-            "energy": pred_energy,
-            "forces": pred_forces,
-        }
+        predictions = {"energy": pred_energy, "forces": pred_forces.reshape(-1, num_atoms, 3)}
 
         return predictions

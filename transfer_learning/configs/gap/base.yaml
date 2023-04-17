@@ -29,7 +29,7 @@ model:
     energy_scale: 1.0
     atom_gaussian_width: 1.0
   other_params:
-    default_sigma: [0.00001, 0.0001, 0.0, 0.0]
+    default_sigma: [0.001, 0.01, 0.0, 0.0]
     e0_method: average
 
 # Values for logger, such as tagging and name of run

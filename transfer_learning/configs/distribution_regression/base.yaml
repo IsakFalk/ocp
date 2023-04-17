@@ -30,7 +30,7 @@ kernel:
   regressor_params:
     lmbda: 1.0e-6
   representation_params:
-    representation_layer: 1
+    representation_layer: 2
   model_checkpoint_path: checkpoints/s2ef_efwt/all/schnet/schnet_all_large.pt # Path to load model checkpoint
 
 optim:
