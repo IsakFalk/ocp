@@ -91,7 +91,6 @@ class MEKRRTrainer(BaseTrainer):
         self._load_data_internal()
         self.load_metrics()
         self.load_model()
-        self.load_loss()
 
     def _load_data_internal(self):
         # Tranform the data into the a full batch
@@ -113,19 +112,6 @@ class MEKRRTrainer(BaseTrainer):
         logging.info("Loaded model from checkpoint successfully!")
         if self.logger is not None:
             self.logger.watch(self.model)
-
-    def load_loss(self):
-        # TODO: Allow for different losses
-        self.loss_fn = {
-            "energy": nn.MSELoss(),
-            "forces": nn.MSELoss(),
-        }
-        # for loss, loss_name in self.loss_fn.items():
-        #     # NOTE: DPPLoss is for distributed training
-        #     # but also does things like taking care of nans,
-        #     # we generally won't use the para   llel stuff
-        #     # and only the other QOL features
-        #     self.loss_fn[loss] = DDPLoss(self.loss_fn[loss])
 
     def train(self):
         # Set up data, taking care of normalization
@@ -167,8 +153,6 @@ class MEKRRTrainer(BaseTrainer):
         self.model.eval()
         dataset = self.datasets[split]
         num_atoms = self.dataset_config[split]["num_atoms"]
-
-        metrics = {"energy_loss": [], "forces_loss": []}
 
         predictions = self.predict(split)
         targets = {
@@ -218,35 +202,6 @@ class MEKRRTrainer(BaseTrainer):
             out["forces"] = out_forces.float()
 
         return out
-
-    def _compute_loss(self, out, batch_list_or_batch):
-        # NOTE: Removed some additional things we probably want
-        if not isinstance(batch_list_or_batch, list):
-            batch_list = [batch_list_or_batch]
-        else:
-            batch_list = batch_list_or_batch
-
-        losses = {}
-
-        # Energy loss.
-        energy_target = torch.cat([batch.y.to(self.device) for batch in batch_list], dim=0).float()
-        energy_target = self.normalizers["target"].norm(energy_target)
-        losses["energy"] = self.loss_fn["energy"](out["energy"], energy_target)
-        # Force loss.
-        if self.config["model_attributes"].get("regress_forces", True):
-            force_target = torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0).float()
-            force_target = self.normalizers["grad_target"].norm(force_target)
-            losses["forces"] = self.loss_fn["forces"](out["forces"], force_target)
-
-        # Sanity check to make sure the compute graph is correct.
-        for lc in losses.values():
-            assert hasattr(lc, "grad_fn")
-
-        loss = (
-            self.config["optim"].get("energy_loss_coefficient") * losses["energy"]
-            + self.config["optim"].get("force_loss_coefficient") * losses["forces"]
-        )
-        return loss, losses
 
     # Takes in a new data source and generates predictions on it.
     def predict(self, split):
