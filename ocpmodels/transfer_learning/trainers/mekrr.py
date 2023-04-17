@@ -89,6 +89,7 @@ class MEKRRTrainer(BaseTrainer):
         self.load_datasets()
         self.load_normalizers()
         self._load_data_internal()
+        self.load_metrics()
         self.load_model()
         self.load_loss()
 
@@ -133,7 +134,6 @@ class MEKRRTrainer(BaseTrainer):
         # grad = self.normalizers["grad_target"].norm(self.datasets["train"].force.float().to(self.device))
         X, _ = self.model(self.datasets["train"].to(self.device))
         self.d = X.shape[-1]
-        # TODO: View
         X = X.reshape(-1, self.config["dataset"]["train"]["num_atoms"], self.d)
 
         # Dispatch to kernel
@@ -166,15 +166,19 @@ class MEKRRTrainer(BaseTrainer):
     def validate(self, split="val"):
         self.model.eval()
         dataset = self.datasets[split]
+        num_atoms = self.dataset_config[split]["num_atoms"]
 
         metrics = {"energy_loss": [], "forces_loss": []}
-        # Forward.
-        out = self._forward(split)
 
-        # Compute metrics.
-        metrics = self._compute_metrics(out, dataset, metrics)
+        predictions = self.predict(split)
+        targets = {
+            "energy": dataset.y.float().to(self.device),
+            "forces": dataset.force.float().to(self.device).reshape(-1, num_atoms, 3),
+        }
+        metrics = self.evaluator.eval(predictions, targets)
 
-        log_dict = {k: aggregate_metric(metrics[k]) for k in metrics}
+        log_dict = {k: metrics[k] for k in metrics}
+        log_dict.update({"epoch": 0})
         log_str = ["{}: {:.4f}".format(k, v) for k, v in log_dict.items()]
         logging.info(", ".join(log_str))
 
@@ -185,42 +189,6 @@ class MEKRRTrainer(BaseTrainer):
                 split=split,
             )
 
-        return metrics
-
-    def _compute_metrics(self, out, batch_list_or_batch, metrics):
-        # NOTE: Removed some additional things we probably want
-        if not isinstance(batch_list_or_batch, list):
-            batch_list = [batch_list_or_batch]
-        else:
-            batch_list = batch_list_or_batch
-
-        losses = {}
-
-        # Energy loss.
-        # TODO: Remove unnecessary reshapes
-        energy_target = torch.cat([batch.y.to(self.device) for batch in batch_list], dim=0).float()
-        losses["energy"] = self.loss_fn["energy"](
-            self.normalizers["target"].denorm(out["energy"]).reshape(-1), energy_target.reshape(-1)
-        )
-        # Force loss.
-        if self.config["model_attributes"].get("regress_forces", True):
-            force_target = torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0).float()
-            losses["forces"] = self.loss_fn["forces"](
-                self.normalizers["grad_target"].denorm(out["forces"]).reshape(-1, 3), force_target.reshape(-1, 3)
-            )
-
-        # Sanity check to make sure the compute graph is correct.
-        for lc in losses.values():
-            assert hasattr(lc, "grad_fn")
-
-        # Note that loss is normalized
-        metrics["energy_loss"].append(losses["energy"].item())
-        if self.config["model_attributes"].get("regress_forces", True):
-            metrics["forces_loss"].append(losses["forces"].item())
-        metrics["loss"] = (
-            self.config["optim"].get("energy_loss_coefficient") * losses["energy"]
-            + self.config["optim"].get("force_loss_coefficient") * losses["forces"]
-        )
         return metrics
 
     def _forward(self, split):

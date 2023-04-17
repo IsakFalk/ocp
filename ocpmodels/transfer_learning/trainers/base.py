@@ -89,23 +89,6 @@ class BaseTrainer:
                 device=self.device,
             )
 
-    def load_loss(self):
-        self.loss_fn = {}
-        self.loss_fn["energy"] = self.config["optim"].get("loss_energy", "mae")
-        self.loss_fn["force"] = self.config["optim"].get("loss_force", "mae")
-        for loss, loss_name in self.loss_fn.items():
-            if loss_name in ["l1", "mae"]:
-                self.loss_fn[loss] = nn.L1Loss()
-            elif loss_name == "mse":
-                self.loss_fn[loss] = nn.MSELoss()
-            elif loss_name == "l2mae":
-                self.loss_fn[loss] = L2MAELoss()
-            elif loss_name == "atomwisel2":
-                self.loss_fn[loss] = AtomwiseL2Loss()
-            else:
-                raise NotImplementedError(f"Unknown loss function name: {loss_name}")
-            self.loss_fn[loss] = DDPLoss(self.loss_fn[loss])
-
     def load_metrics(self):
         self.evaluator = Evaluator()
 

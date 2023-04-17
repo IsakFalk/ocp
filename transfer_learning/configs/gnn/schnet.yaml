@@ -1,7 +1,7 @@
 dataset:
   train:
     # path to extxyz files
-    src: data/luigi/splits/formula=Fe40N2_surface=110_driver=nn-sp_bias=metad_train.xyz
+    src: data/luigi/splits/example-traj-Fe-N2-111_train.xyz
     # If we want to normalize each target value_ i.e. subtract the mean and
     # divide by standard deviation_ then those 'target_mean' and 'target_std'
     # statistics for energies and 'grad_target_mean' and 'grad_target_std'
@@ -9,10 +9,10 @@ dataset:
     normalize_labels: True
   val:
     # path to extxyz files
-    src: data/luigi/splits/formula=Fe40N2_surface=110_driver=nn-sp_bias=metad_val.xyz
+    src: data/luigi/splits/example-traj-Fe-N2-111_val.xyz
   test:
     # path to extxyz files
-    src: data/luigi/splits/formula=Fe40N2_surface=110_driver=nn-sp_bias=metad_test.xyz
+    src: data/luigi/splits/example-traj-Fe-N2-111_test.xyz
 
 # Values for logger, such as tagging and name of run
 logger:

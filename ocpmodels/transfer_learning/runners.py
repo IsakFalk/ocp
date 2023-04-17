@@ -36,7 +36,6 @@ class MEKRRRunner(BaseRunner):
             run_dir=self.run_args.run_dir,
             is_debug=self.run_args.debug,
         )
-        # TODO: add checkpoint resuming
 
     def run(self):
         if self.config["task"].get("train", True):
