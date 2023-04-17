@@ -89,6 +89,7 @@ class GNNTrainer(BaseTrainer):
         self.load_datasets()
         self.load_normalizers()
         self._load_data_internal()
+        self.load_metrics()
         self.load_model()
         self.load_loss()
         self.load_optimizer()
@@ -117,17 +118,18 @@ class GNNTrainer(BaseTrainer):
             self.logger.watch(self.model)
 
     def load_loss(self):
-        # TODO: Allow for different losses
-        self.loss_fn = {
-            "energy": nn.MSELoss(),
-            "forces": nn.MSELoss(),
-        }
-        # for loss, loss_name in self.loss_fn.items():
-        #     # NOTE: DPPLoss is for distributed training
-        #     # but also does things like taking care of nans,
-        #     # we generally won't use the para   llel stuff
-        #     # and only the other QOL features
-        #     self.loss_fn[loss] = DDPLoss(self.loss_fn[loss])
+        self.loss_fn = {}
+        energy_train_objective = self.task_config["train_objective"]["energy"]
+        if energy_train_objective == "mse":
+            self.loss_fn["energy"] = nn.MSELoss()
+        elif energy_train_objective == "mae":
+            self.loss_fn["energy"] = nn.L1Loss()
+
+        forces_train_objective = self.task_config["train_objective"]["forces"]
+        if forces_train_objective == "mse":
+            self.loss_fn["forces"] = nn.MSELoss()
+        elif forces_train_objective == "mae":
+            self.loss_fn["forces"] = nn.L1Loss()
 
     def load_optimizer(self):
         optimizer = self.config["optim"].get("optimizer", "AdamW")
@@ -176,7 +178,7 @@ class GNNTrainer(BaseTrainer):
         val_metrics,
         disable_eval_tqdm=True,
     ):
-        current_metric = aggregate_metric(val_metrics[primary_metric])
+        current_metric = val_metrics[primary_metric]
         if current_metric < self.best_val_metric:
             self.best_val_metric = current_metric
             self.save(
@@ -193,14 +195,10 @@ class GNNTrainer(BaseTrainer):
 
         eval_every = self.config["optim"].get("eval_every", len(self.loaders["train"]))
         checkpoint_every = self.config["optim"].get("checkpoint_every", eval_every)
-        # primary_metric = self.config["task"].get(
-        #     "primary_metric", self.evaluator.task_primary_metric[self.name]
-        # )
-        # TODO: If we want to have other primary metrics, would have to change this
-        primary_metric = "loss"
+        primary_metric = self.task_config["primary_val_metric"]
         self.best_val_metric = np.inf
 
-        self.metrics = {"energy_loss": [], "forces_loss": []}
+        self.loss_metrics = {"energy_loss": [], "forces_loss": []}
         self.step = 0
         for epoch in range(self.config["optim"]["max_epochs"]):
             self.epoch = epoch
@@ -211,12 +209,11 @@ class GNNTrainer(BaseTrainer):
                 out = self._forward(batch)
                 loss, losses = self._compute_loss(out, batch)
                 self._backward(loss)
+                self.loss_metrics["energy_loss"].append(aggregate_metric(losses["energy"].item()))
+                self.loss_metrics["forces_loss"].append(aggregate_metric(losses["forces"].item()))
 
-                # Compute metrics.
-                self.metrics = self._compute_metrics(out, batch, self.metrics)
-
-                # Log metrics.
-                log_dict = {k: aggregate_metric(self.metrics[k]) for k in self.metrics}
+                # Log loss metrics.
+                log_dict = {k: aggregate_metric(self.loss_metrics[k]) for k in self.loss_metrics}
                 log_dict.update(
                     {
                         "lr": self.scheduler.get_lr(),
@@ -227,7 +224,7 @@ class GNNTrainer(BaseTrainer):
                 if self.step % self.print_every == 0:
                     log_str = ["{}: {:.2e}".format(k, v) for k, v in log_dict.items()]
                     logging.info(", ".join(log_str))  # TODO: In future, this should output metrics, such as mae
-                    self.metrics = {"energy_loss": [], "forces_loss": []}
+                    self.loss_metrics = {"energy_loss": [], "forces_loss": []}
 
                 if self.logger is not None:
                     self.logger.log(
@@ -242,10 +239,7 @@ class GNNTrainer(BaseTrainer):
                 # Evaluate on val set every `eval_every` iterations.
                 if self.step % eval_every == 0:
                     if self.loaders["val"] is not None:
-                        val_metrics = self.validate(
-                            split="val",
-                            disable_tqdm=disable_eval_tqdm,
-                        )
+                        val_metrics = self.validate(split="val", disable_tqdm=disable_eval_tqdm, final=False)
                         self.update_best(
                             primary_metric,
                             val_metrics,
@@ -293,66 +287,46 @@ class GNNTrainer(BaseTrainer):
         self.model.eval()
         loader = self.loaders[split]
 
-        metrics = {"energy_loss": [], "forces_loss": []}
+        # Get predictions and targets over the full 'split' dataset
+        predictions = {"energy": [], "forces": []}
+        targets = {"energy": [], "forces": []}
         for i, batch in tqdm(
             enumerate(loader),
             total=len(loader),
             disable=disable_tqdm,
         ):
-            # Forward.
             out = self._forward(batch)
+            # denorm
+            out["energy"] = self.normalizers["target"].denorm(out["energy"])
+            out["forces"] = self.normalizers["grad_target"].denorm(out["forces"])
+            predictions["energy"].extend(out["energy"].detach())
+            predictions["forces"].extend(out["forces"].detach().reshape(-1, self.dataset_config[split]["num_atoms"], 3))
+            targets["energy"].extend(batch.y.detach())
+            targets["forces"].extend(batch.force.detach().reshape(-1, self.dataset_config[split]["num_atoms"], 3))
+        predictions["energy"] = torch.stack(predictions["energy"])
+        predictions["forces"] = torch.stack(predictions["forces"])
+        targets["energy"] = torch.stack(targets["energy"])
+        targets["forces"] = torch.stack(targets["forces"])
 
-            # Compute metrics.
-            metrics = self._compute_metrics(out, batch, metrics)
+        metrics = self.evaluator.eval(predictions, targets)
 
-            if final:
-                log_dict = {k + "_final": aggregate_metric(metrics[k]) for k in metrics}
-            else:
-                log_dict = {k: aggregate_metric(metrics[k]) for k in metrics}
-            log_dict.update({"epoch": self.epoch})
-            log_str = ["{}: {:.4f}".format(k, v) for k, v in log_dict.items()]
-            logging.info(", ".join(log_str))
-
-            if self.logger is not None:
-                self.logger.log(
-                    log_dict,
-                    step=self.step,
-                    split=split,
-                )
-
-        return metrics
-
-    def _compute_metrics(self, out, batch_list_or_batch, metrics):
-        # NOTE: Removed some additional things we probably want
-        if not isinstance(batch_list_or_batch, list):
-            batch_list = [batch_list_or_batch]
+        if not final:
+            # If we are training, we use this to get a nice plot in wandb
+            log_dict = {"loss_" + k: metrics[k] for k in metrics}
         else:
-            batch_list = batch_list_or_batch
+            # For this we will have the same name so we can compare across methods
+            log_dict = {k: metrics[k] for k in metrics}
+        log_dict.update({"epoch": self.epoch})
+        log_str = ["{}: {:.4f}".format(k, v) for k, v in log_dict.items()]
+        logging.info(", ".join(log_str))
 
-        losses = dict()
-
-        # Energy loss.
-        energy_target = torch.cat([batch.y.to(self.device) for batch in batch_list], dim=0).float()
-        losses["energy"] = self.loss_fn["energy"](self.normalizers["target"].denorm(out["energy"]), energy_target)
-        # Force loss.
-        if self.config["model_attributes"].get("regress_forces", True):
-            force_target = torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0).float()
-            losses["forces"] = self.loss_fn["forces"](
-                self.normalizers["grad_target"].denorm(out["forces"]), force_target
+        if self.logger is not None:
+            self.logger.log(
+                log_dict,
+                step=self.step,
+                split=split,
             )
 
-        # Sanity check to make sure the compute graph is correct.
-        for lc in losses.values():
-            assert hasattr(lc, "grad_fn")
-
-        # Note that loss is normalized
-        metrics["energy_loss"].append(losses["energy"].item())
-        if self.config["model_attributes"].get("regress_forces", True):
-            metrics["forces_loss"].append(losses["forces"].item())
-        metrics["loss"] = (
-            self.config["optim"].get("energy_loss_coefficient") * losses["energy"]
-            + self.config["optim"].get("force_loss_coefficient") * losses["forces"]
-        )
         return metrics
 
     def _forward(self, batch):
