@@ -141,9 +141,6 @@ class GNNTrainer(BaseTrainer):
                     if "embedding" in name:
                         param.requires_grad = False
         self.model = loader.model.to(self.device)
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                print(name)
         if self.logger is not None:
             self.logger.watch(self.model)
 
