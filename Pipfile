@@ -27,6 +27,7 @@ submitit = "*"
 # torch-geometric = {index= "pytorch-geometric", version= "*"}
 torch = {version = "==2.0.0+cu118", index = "downloadpytorch"}
 quippy-ase = "*"
+sgdml = "*"
 
 [dev-packages]
 pre-commit = "2.10"

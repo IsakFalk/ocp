@@ -14,6 +14,7 @@ from ocpmodels.transfer_learning.common.flags import flags
 from ocpmodels.transfer_learning.common.utils import get_config
 from ocpmodels.transfer_learning.loaders import BaseLoader  # noqa: F401
 from ocpmodels.transfer_learning.runners import (
+    FTGNNRunner,
     GAPRunner,
     GNNRunner,
     MEKRRRunner,
@@ -26,15 +27,19 @@ if __name__ == "__main__":
     args, override_args = parser.parse_known_args()
     config = get_config(args.config_yml)
 
-    if config["runner"] == "GNN":
+    if config["runner"] == "GNN":  # Supervised learning
         runner = GNNRunner(config, args)
-    elif config["runner"] == "MEKRR":
+    elif config["runner"] == "FTGNN":
+        runner = FTGNNRunner(config, args)
+    elif config["runner"] == "MEKRR":  # Transfer learning
         runner = MEKRRRunner(config, args)
-    elif config["runner"] == "GAP":
+    elif config["runner"] == "GAP":  # Supervised learning
         runner = GAPRunner(config, args)
-    elif config["runner"] == "GDML":
+    elif config["runner"] == "GDML":  # Supervised learning
         raise NotImplementedError
-    elif config["runner"] == "BPNN":
+    elif config["runner"] == "BPNN":  # Supervised learning
+        raise NotImplementedError
+    else:
         raise NotImplementedError
 
     runner.setup()

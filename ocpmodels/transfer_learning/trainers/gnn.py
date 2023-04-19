@@ -1,6 +1,7 @@
 import copy
 import datetime
 import logging
+import re
 from pathlib import Path
 from pprint import pprint
 
@@ -38,6 +39,7 @@ class GNNTrainer(BaseTrainer):
         run_dir="checkpoints",
         is_debug=False,
         hide_eval_progressbar=False,
+        fine_tune=False,
     ):
         self.task_config = copy.deepcopy(task_config)
         self.model_config = copy.deepcopy(model_config)  # Config for model
@@ -59,6 +61,7 @@ class GNNTrainer(BaseTrainer):
         self.predictions_dir = self.base_path / "predictions"
         self.predictions_dir.mkdir(parents=True, exist_ok=True)
         self.is_debug = is_debug
+        self.fine_tune = fine_tune
         self.hide_eval_progressbar = hide_eval_progressbar
         self.epoch = 0
         self.step = 0
@@ -69,8 +72,20 @@ class GNNTrainer(BaseTrainer):
             self.device = torch.device("cpu")
             self.cpu = True
 
+        # Load model config directly from pretrained checkpoint
+        # and massage into right form
+        if self.fine_tune:
+            self.freeze_layers_up_to = self.model_config["freeze_layers_up_to"]
+            self.model_checkpoint_path = self.model_config["model_checkpoint_path"]
+            self.model_config = torch.load(self.model_checkpoint_path, map_location=self.device)["config"]
+            name = self.model_config["model"]
+            self.model_config = self.model_config["model_attributes"]
+            self.model_config["regress_forces"] = True
+        else:
+            name = self.model_config.pop("name")
+
         self.config = {
-            "model": self.model_config.pop("name"),
+            "model": name,
             "model_attributes": self.model_config,
             "optim": self.optimizer,
             "logger": self.logger_config,
@@ -111,9 +126,24 @@ class GNNTrainer(BaseTrainer):
 
     def load_model(self):
         _config = copy.deepcopy(self.config)
-        self.model = BaseLoader(
+        loader = BaseLoader(
             _config, regress_forces=_config["model_attributes"].pop("regress_forces"), seed=self.seed, cpu=self.cpu
-        ).model.to(self.device)
+        )
+        if self.fine_tune:
+            loader.load_checkpoint(self.model_checkpoint_path, strict_load=False)
+            # freeze all layers up to self.freeze_layers_up_to
+            freeze_layers = list(range(self.freeze_layers_up_to))
+            for name, param in loader.model.named_parameters():
+                try:
+                    if int(re.findall(r"[0-9]", name)[0]) in freeze_layers and not re.match(r"lin[0-9]\.*", name):
+                        param.requires_grad = False
+                except IndexError:
+                    if "embedding" in name:
+                        param.requires_grad = False
+        self.model = loader.model.to(self.device)
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                print(name)
         if self.logger is not None:
             self.logger.watch(self.model)
 

@@ -114,3 +114,29 @@ class GNNRunner(BaseRunner):
             self.trainer.train(
                 disable_eval_tqdm=self.config.get("hide_eval_progressbar", False),
             )
+
+
+class FTGNNRunner(BaseRunner):
+    def setup(self):
+        self.trainer = GNNTrainer(
+            self.config["task"],
+            self.config["model"],
+            self.config["dataset"],
+            self.config["optim"],
+            self.config["logger"],
+            print_every=self.run_args.print_every,
+            seed=self.run_args.seed,
+            cpu=self.run_args.cpu,
+            name=self.config["logger"]["name"],
+            run_dir=self.run_args.run_dir,
+            is_debug=self.run_args.debug,
+            hide_eval_progressbar=self.config.get("hide_eval_progressbar", False),
+            fine_tune=True,
+        )
+        # TODO: add checkpoint resuming
+
+    def run(self):
+        if self.config["task"].get("train", True):
+            self.trainer.train(
+                disable_eval_tqdm=self.config.get("hide_eval_progressbar", False),
+            )
