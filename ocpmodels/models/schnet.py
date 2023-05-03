@@ -73,6 +73,7 @@ class SchNetWrap(SchNet, BaseModel):
         num_gaussians=50,
         cutoff=10.0,
         readout="add",
+        mekrr_forces=False,
     ):
         self.num_targets = num_targets
         self.representation = representation
@@ -83,6 +84,7 @@ class SchNetWrap(SchNet, BaseModel):
         self.otf_graph = otf_graph
         self.max_neighbors = 50
         self.reduce = readout
+        self.mekrr_forces = mekrr_forces
         super(SchNetWrap, self).__init__(
             hidden_channels=hidden_channels,
             num_filters=num_filters,
@@ -139,7 +141,8 @@ class SchNetWrap(SchNet, BaseModel):
         return energy
 
     def forward(self, data):
-        if self.regress_forces:
+        # Need to not change the requires_grad of the input for mekrr
+        if self.regress_forces and not self.mekrr_forces:
             data.pos.requires_grad_(True)
         energy = self._forward(data)
 
