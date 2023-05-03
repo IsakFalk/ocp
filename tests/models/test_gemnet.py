@@ -64,9 +64,7 @@ def load_model(request):
         num_atom=3,
         regress_forces=True,
         direct_forces=True,
-        scale_file=os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "gemnet-dT-scales.json"
-        ),
+        scale_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "gemnet-dT-scales.json"),
     )
     request.cls.model = model
 

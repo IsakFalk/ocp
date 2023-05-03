@@ -41,9 +41,7 @@ class Dense(torch.nn.Module):
         elif activation is None:
             self._activation = torch.nn.Identity()
         else:
-            raise NotImplementedError(
-                "Activation function not implemented for GemNet (yet)."
-            )
+            raise NotImplementedError("Activation function not implemented for GemNet (yet).")
 
     def reset_parameters(self, initializer=he_orthogonal_init):
         initializer(self.linear.weight)
@@ -89,20 +87,10 @@ class ResidualLayer(torch.nn.Module):
             Keyword arguments for initializing the layers.
     """
 
-    def __init__(
-        self, units: int, nLayers: int = 2, layer=Dense, **layer_kwargs
-    ):
+    def __init__(self, units: int, nLayers: int = 2, layer=Dense, **layer_kwargs):
         super().__init__()
         self.dense_mlp = torch.nn.Sequential(
-            *[
-                layer(
-                    in_features=units,
-                    out_features=units,
-                    bias=False,
-                    **layer_kwargs
-                )
-                for _ in range(nLayers)
-            ]
+            *[layer(in_features=units, out_features=units, bias=False, **layer_kwargs) for _ in range(nLayers)]
         )
         self.inv_sqrt_2 = 1 / math.sqrt(2)
 

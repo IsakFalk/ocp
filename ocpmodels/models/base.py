@@ -51,16 +51,12 @@ class BaseModel(nn.Module):
                     neighbors = data.neighbors
 
             except AttributeError:
-                logging.warning(
-                    "Turning otf_graph=True as required attributes not present in data object"
-                )
+                logging.warning("Turning otf_graph=True as required attributes not present in data object")
                 otf_graph = True
 
         if use_pbc:
             if otf_graph:
-                edge_index, cell_offsets, neighbors = radius_graph_pbc(
-                    data, cutoff, max_neighbors
-                )
+                edge_index, cell_offsets, neighbors = radius_graph_pbc(data, cutoff, max_neighbors)
 
             out = get_pbc_distances(
                 data.pos,
@@ -89,12 +85,8 @@ class BaseModel(nn.Module):
             distance_vec = data.pos[j] - data.pos[i]
 
             edge_dist = distance_vec.norm(dim=-1)
-            cell_offsets = torch.zeros(
-                edge_index.shape[1], 3, device=data.pos.device
-            )
-            cell_offset_distances = torch.zeros_like(
-                cell_offsets, device=data.pos.device
-            )
+            cell_offsets = torch.zeros(edge_index.shape[1], 3, device=data.pos.device)
+            cell_offset_distances = torch.zeros_like(cell_offsets, device=data.pos.device)
             neighbors = compute_neighbors(data, edge_index)
 
         return (

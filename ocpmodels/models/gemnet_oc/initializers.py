@@ -55,9 +55,7 @@ def grid_init(tensor, start=-1, end=1):
     fan_in = tensor.shape[1]
 
     with torch.no_grad():
-        data = torch.linspace(
-            start, end, fan_in, device=tensor.device, dtype=tensor.dtype
-        ).expand_as(tensor)
+        data = torch.linspace(start, end, fan_in, device=tensor.device, dtype=tensor.dtype).expand_as(tensor)
         tensor.copy_(data)
 
     return tensor
@@ -70,9 +68,7 @@ def log_grid_init(tensor, start=-4, end=0):
     fan_in = tensor.shape[1]
 
     with torch.no_grad():
-        data = torch.logspace(
-            start, end, fan_in, device=tensor.device, dtype=tensor.dtype
-        ).expand_as(tensor)
+        data = torch.logspace(start, end, fan_in, device=tensor.device, dtype=tensor.dtype).expand_as(tensor)
         tensor.copy_(data)
 
     return tensor

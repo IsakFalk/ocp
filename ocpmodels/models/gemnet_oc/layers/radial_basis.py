@@ -36,10 +36,7 @@ class PolynomialEnvelope(torch.nn.Module):
 
     def forward(self, d_scaled):
         env_val = (
-            1
-            + self.a * d_scaled**self.p
-            + self.b * d_scaled ** (self.p + 1)
-            + self.c * d_scaled ** (self.p + 2)
+            1 + self.a * d_scaled**self.p + self.b * d_scaled ** (self.p + 1) + self.c * d_scaled ** (self.p + 2)
         )
         return torch.where(d_scaled < 1, env_val, torch.zeros_like(d_scaled))
 
@@ -56,9 +53,7 @@ class ExponentialEnvelope(torch.nn.Module):
         super().__init__()
 
     def forward(self, d_scaled):
-        env_val = torch.exp(
-            -(d_scaled**2) / ((1 - d_scaled) * (1 + d_scaled))
-        )
+        env_val = torch.exp(-(d_scaled**2) / ((1 - d_scaled) * (1 + d_scaled)))
         return torch.where(d_scaled < 1, env_val, torch.zeros_like(d_scaled))
 
 
@@ -100,17 +95,13 @@ class SphericalBesselBasis(torch.nn.Module):
 
         # Initialize frequencies at canonical positions
         self.frequencies = torch.nn.Parameter(
-            data=torch.tensor(
-                np.pi * np.arange(1, num_radial + 1, dtype=np.float32)
-            ),
+            data=torch.tensor(np.pi * np.arange(1, num_radial + 1, dtype=np.float32)),
             requires_grad=True,
         )
 
     def forward(self, d_scaled):
         return (
-            self.norm_const
-            / d_scaled[:, None]
-            * torch.sin(self.frequencies * d_scaled[:, None])
+            self.norm_const / d_scaled[:, None] * torch.sin(self.frequencies * d_scaled[:, None])
         )  # (num_edges, num_radial)
 
 
@@ -158,9 +149,7 @@ class BernsteinBasis(torch.nn.Module):
     def forward(self, d_scaled):
         gamma = self.softplus(self.pregamma)  # constrain to positive
         exp_d = torch.exp(-gamma * d_scaled)[:, None]
-        return (
-            self.prefactor * (exp_d**self.exp1) * ((1 - exp_d) ** self.exp2)
-        )
+        return self.prefactor * (exp_d**self.exp1) * ((1 - exp_d) ** self.exp2)
 
 
 class RadialBasis(torch.nn.Module):
@@ -212,13 +201,9 @@ class RadialBasis(torch.nn.Module):
 
         # RBFs get distances scaled to be in [0, 1]
         if rbf_name == "gaussian":
-            self.rbf = GaussianBasis(
-                start=0, stop=1, num_gaussians=num_radial, **rbf_hparams
-            )
+            self.rbf = GaussianBasis(start=0, stop=1, num_gaussians=num_radial, **rbf_hparams)
         elif rbf_name == "spherical_bessel":
-            self.rbf = SphericalBesselBasis(
-                num_radial=num_radial, cutoff=cutoff, **rbf_hparams
-            )
+            self.rbf = SphericalBesselBasis(num_radial=num_radial, cutoff=cutoff, **rbf_hparams)
         elif rbf_name == "bernstein":
             self.rbf = BernsteinBasis(num_radial=num_radial, **rbf_hparams)
         else:

@@ -78,12 +78,7 @@ def bessel_basis(n, k):
     for order in range(n):
         bess_basis_tmp = []
         for i in range(k):
-            bess_basis_tmp += [
-                sym.simplify(
-                    normalizer[order][i]
-                    * f[order].subs(x, zeros[order, i] * x)
-                )
-            ]
+            bess_basis_tmp += [sym.simplify(normalizer[order][i] * f[order].subs(x, zeros[order, i] * x))]
         bess_basis += [bess_basis_tmp]
     return bess_basis
 
@@ -112,9 +107,7 @@ def sph_harm_prefactor(l_degree, m_order):
     ) ** 0.5
 
 
-def associated_legendre_polynomials(
-    L_maxdegree, zero_m_only=True, pos_m_only=True
-):
+def associated_legendre_polynomials(L_maxdegree, zero_m_only=True, pos_m_only=True):
     """Computes string formulas of the associated legendre polynomials up to degree L (excluded).
 
     Parameters
@@ -133,9 +126,7 @@ def associated_legendre_polynomials(
     """
     # calculations from http://web.cmb.usc.edu/people/alber/Software/tomominer/docs/cpp/group__legendre__polynomials.html
     z = sym.symbols("z")
-    P_l_m = [
-        [0] * (2 * l_degree + 1) for l_degree in range(L_maxdegree)
-    ]  # for order l: -l <= m <= l
+    P_l_m = [[0] * (2 * l_degree + 1) for l_degree in range(L_maxdegree)]  # for order l: -l <= m <= l
 
     P_l_m[0][0] = 1
     if L_maxdegree > 0:
@@ -144,10 +135,7 @@ def associated_legendre_polynomials(
             P_l_m[1][0] = z
             for l_degree in range(2, L_maxdegree):
                 P_l_m[l_degree][0] = sym.simplify(
-                    (
-                        (2 * l_degree - 1) * z * P_l_m[l_degree - 1][0]
-                        - (l_degree - 1) * P_l_m[l_degree - 2][0]
-                    )
+                    ((2 * l_degree - 1) * z * P_l_m[l_degree - 1][0] - (l_degree - 1) * P_l_m[l_degree - 2][0])
                     / l_degree
                 )
             return P_l_m
@@ -155,9 +143,7 @@ def associated_legendre_polynomials(
             # for m >= 0
             for l_degree in range(1, L_maxdegree):
                 P_l_m[l_degree][l_degree] = sym.simplify(
-                    (1 - 2 * l_degree)
-                    * (1 - z**2) ** 0.5
-                    * P_l_m[l_degree - 1][l_degree - 1]
+                    (1 - 2 * l_degree) * (1 - z**2) ** 0.5 * P_l_m[l_degree - 1][l_degree - 1]
                 )  # P_00, P_11, P_22, P_33
 
             for m_order in range(0, L_maxdegree - 1):
@@ -169,11 +155,8 @@ def associated_legendre_polynomials(
                 for m_order in range(l_degree - 1):  # P_20, P_30, P_31
                     P_l_m[l_degree][m_order] = sym.simplify(
                         (
-                            (2 * l_degree - 1)
-                            * z
-                            * P_l_m[l_degree - 1][m_order]
-                            - (l_degree + m_order - 1)
-                            * P_l_m[l_degree - 2][m_order]
+                            (2 * l_degree - 1) * z * P_l_m[l_degree - 1][m_order]
+                            - (l_degree + m_order - 1) * P_l_m[l_degree - 2][m_order]
                         )
                         / (l_degree - m_order)
                     )
@@ -181,9 +164,7 @@ def associated_legendre_polynomials(
             if not pos_m_only:
                 # for m < 0: P_l(-m) = (-1)^m * (l-m)!/(l+m)! * P_lm
                 for l_degree in range(1, L_maxdegree):
-                    for m_order in range(
-                        1, l_degree + 1
-                    ):  # P_1(-1), P_2(-1) P_2(-2)
+                    for m_order in range(1, l_degree + 1):  # P_1(-1), P_2(-1) P_2(-2)
                         P_l_m[l_degree][-m_order] = sym.simplify(
                             (-1) ** m_order
                             * np.math.factorial(l_degree - m_order)
@@ -227,9 +208,7 @@ def real_sph_harm(L_maxdegree, use_theta, use_phi=True, zero_m_only=True):
         # for all m != 0: Y_lm = 0
         Y_l_m = [[0] for l_degree in range(L_maxdegree)]
     else:
-        Y_l_m = [
-            [0] * (2 * l_degree + 1) for l_degree in range(L_maxdegree)
-        ]  # for order l: -l <= m <= l
+        Y_l_m = [[0] * (2 * l_degree + 1) for l_degree in range(L_maxdegree)]  # for order l: -l <= m <= l
 
     # convert expressions to spherical coordiantes
     if use_theta:
@@ -238,9 +217,7 @@ def real_sph_harm(L_maxdegree, use_theta, use_phi=True, zero_m_only=True):
         for l_degree in range(L_maxdegree):
             for m_order in range(len(P_l_m[l_degree])):
                 if not isinstance(P_l_m[l_degree][m_order], int):
-                    P_l_m[l_degree][m_order] = P_l_m[l_degree][m_order].subs(
-                        z, sym.cos(theta)
-                    )
+                    P_l_m[l_degree][m_order] = P_l_m[l_degree][m_order].subs(z, sym.cos(theta))
 
     ## calculate Y_lm
     # Y_lm = N * P_lm(cos(theta)) * exp(i*m*phi)
@@ -249,9 +226,7 @@ def real_sph_harm(L_maxdegree, use_theta, use_phi=True, zero_m_only=True):
     #             { sqrt(2) * (-1)^m * N * P_lm * cos(m*phi)       if m > 0
 
     for l_degree in range(L_maxdegree):
-        Y_l_m[l_degree][0] = sym.simplify(
-            sph_harm_prefactor(l_degree, 0) * P_l_m[l_degree][0]
-        )  # Y_l0
+        Y_l_m[l_degree][0] = sym.simplify(sph_harm_prefactor(l_degree, 0) * P_l_m[l_degree][0])  # Y_l0
 
     if not zero_m_only:
         phi = sym.symbols("phi")
@@ -282,7 +257,5 @@ def real_sph_harm(L_maxdegree, use_theta, use_phi=True, zero_m_only=True):
             y = sym.symbols("y")
             for l_degree in range(L_maxdegree):
                 for m_order in range(len(Y_l_m[l_degree])):
-                    Y_l_m[l_degree][m_order] = sym.simplify(
-                        Y_l_m[l_degree][m_order].subs(phi, sym.atan2(y, x))
-                    )
+                    Y_l_m[l_degree][m_order] = sym.simplify(Y_l_m[l_degree][m_order].subs(phi, sym.atan2(y, x)))
     return Y_l_m

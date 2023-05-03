@@ -24,15 +24,15 @@ class TestGemNetOC:
         setup_imports()
 
         # download and load weights.
-        checkpoint_url = "https://dl.fbaipublicfiles.com/opencatalystproject/models/2022_07/s2ef/gemnet_oc_base_s2ef_all.pt"
+        checkpoint_url = (
+            "https://dl.fbaipublicfiles.com/opencatalystproject/models/2022_07/s2ef/gemnet_oc_base_s2ef_all.pt"
+        )
 
         # load buffer into memory as a stream
         # and then load it with torch.load
         r = requests.get(checkpoint_url, stream=True)
         r.raise_for_status()
-        checkpoint = torch.load(
-            io.BytesIO(r.content), map_location=torch.device("cpu")
-        )
+        checkpoint = torch.load(io.BytesIO(r.content), map_location=torch.device("cpu"))
 
         model = registry.get_model_class("gemnet_oc")(
             None,
@@ -86,10 +86,7 @@ class TestGemNetOC:
             scale_file=checkpoint["scale_dict"],
         )
 
-        new_dict = {
-            k[len("module.") * 2 :]: v
-            for k, v in checkpoint["state_dict"].items()
-        }
+        new_dict = {k[len("module.") * 2 :]: v for k, v in checkpoint["state_dict"].items()}
 
         try:
             load_state_dict(model, new_dict)
@@ -101,15 +98,15 @@ class TestGemNetOC:
         setup_imports()
 
         # download and load weights.
-        checkpoint_url = "https://dl.fbaipublicfiles.com/opencatalystproject/models/2022_07/s2ef/gemnet_oc_base_s2ef_all.pt"
+        checkpoint_url = (
+            "https://dl.fbaipublicfiles.com/opencatalystproject/models/2022_07/s2ef/gemnet_oc_base_s2ef_all.pt"
+        )
 
         # load buffer into memory as a stream
         # and then load it with torch.load
         r = requests.get(checkpoint_url, stream=True)
         r.raise_for_status()
-        checkpoint = torch.load(
-            io.BytesIO(r.content), map_location=torch.device("cpu")
-        )
+        checkpoint = torch.load(io.BytesIO(r.content), map_location=torch.device("cpu"))
 
         model = registry.get_model_class("gemnet_oc")(
             None,
@@ -172,10 +169,7 @@ class TestGemNetOC:
 
             load_scales_compat(model, checkpoint["scale_dict"])
 
-            new_dict = {
-                k[len("module.") * 2 :]: v
-                for k, v in checkpoint["state_dict"].items()
-            }
+            new_dict = {k[len("module.") * 2 :]: v for k, v in checkpoint["state_dict"].items()}
             param_key = f"{key}.scale_factor"
             new_dict[param_key] = checkpoint["scale_dict"][key] - 10.0
 

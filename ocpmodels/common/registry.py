@@ -36,16 +36,12 @@ def _get_absolute_mapping(name: str):
     try:
         module = importlib.import_module(module_name)
     except (ModuleNotFoundError, ValueError) as e:
-        raise RuntimeError(
-            f"Could not import module `{module_name}` for import `{name}`"
-        ) from e
+        raise RuntimeError(f"Could not import module `{module_name}` for import `{name}`") from e
 
     try:
         return getattr(module, class_name)
     except AttributeError as e:
-        raise RuntimeError(
-            f"Could not import class `{class_name}` from module `{module_name}`"
-        ) from e
+        raise RuntimeError(f"Could not import class `{class_name}` from module `{module_name}`") from e
 
 
 class Registry:
@@ -144,9 +140,7 @@ class Registry:
         def wrap(func):
             from ocpmodels.common.logger import Logger
 
-            assert issubclass(
-                func, Logger
-            ), "All loggers must inherit Logger class"
+            assert issubclass(func, Logger), "All loggers must inherit Logger class"
             cls.mapping["logger_name_mapping"][name] = func
             return func
 
@@ -203,21 +197,15 @@ class Registry:
         mapping = cls.mapping.get(mapping_name, {})
         existing_keys = list(mapping.keys())
 
-        existing_cls_path = (
-            mapping.get(existing_keys[-1], None) if existing_keys else None
-        )
+        existing_cls_path = mapping.get(existing_keys[-1], None) if existing_keys else None
         if existing_cls_path is not None:
             existing_cls_path = f"{existing_cls_path.__module__}.{existing_cls_path.__qualname__}"
         else:
             existing_cls_path = "ocpmodels.trainers.ForcesTrainer"
 
         existing_keys = [f"'{name}'" for name in existing_keys]
-        existing_keys = (
-            ", ".join(existing_keys[:-1]) + " or " + existing_keys[-1]
-        )
-        existing_keys_str = (
-            f" (one of {existing_keys})" if existing_keys else ""
-        )
+        existing_keys = ", ".join(existing_keys[:-1]) + " or " + existing_keys[-1]
+        existing_keys_str = f" (one of {existing_keys})" if existing_keys else ""
         return RuntimeError(
             f"Failed to find the {kind} '{name}'. "
             f"You may either use a {kind} from the registry{existing_keys_str} "
@@ -284,14 +272,9 @@ class Registry:
             if value is default:
                 break
 
-        if (
-            "writer" in cls.mapping["state"]
-            and value == default
-            and no_warning is False
-        ):
+        if "writer" in cls.mapping["state"] and value == default and no_warning is False:
             cls.mapping["state"]["writer"].write(
-                "Key {} is not present in registry, returning default value "
-                "of {}".format(original_name, default)
+                "Key {} is not present in registry, returning default value " "of {}".format(original_name, default)
             )
         return value
 

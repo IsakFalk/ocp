@@ -54,9 +54,7 @@ class OC22LmdbDataset(Dataset):
             for db_path in db_paths:
                 self.envs.append(self.connect_db(db_path))
                 try:
-                    length = pickle.loads(
-                        self.envs[-1].begin().get("length".encode("ascii"))
-                    )
+                    length = pickle.loads(self.envs[-1].begin().get("length".encode("ascii")))
                 except TypeError:
                     length = self.envs[-1].stat()["entries"]
                 self._keys.append(list(range(length)))
@@ -83,25 +81,18 @@ class OC22LmdbDataset(Dataset):
         else:
             self.metadata_path = self.path.parent / "metadata.npz"
             self.env = self.connect_db(self.path)
-            self._keys = [
-                f"{j}".encode("ascii")
-                for j in range(self.env.stat()["entries"])
-            ]
+            self._keys = [f"{j}".encode("ascii") for j in range(self.env.stat()["entries"])]
             self.num_samples = len(self._keys)
 
         self.transform = transform
         self.lin_ref = self.oc20_ref = False
         # only needed for oc20 datasets, oc22 is total by default
-        self.train_on_oc20_total_energies = self.config.get(
-            "train_on_oc20_total_energies", False
-        )
+        self.train_on_oc20_total_energies = self.config.get("train_on_oc20_total_energies", False)
         if self.train_on_oc20_total_energies:
             self.oc20_ref = pickle.load(open(config["oc20_ref"], "rb"))
         if self.config.get("lin_ref", False):
             coeff = np.load(self.config["lin_ref"], allow_pickle=True)["coeff"]
-            self.lin_ref = torch.nn.Parameter(
-                torch.tensor(coeff), requires_grad=False
-            )
+            self.lin_ref = torch.nn.Parameter(torch.tensor(coeff), requires_grad=False)
         self.subsample = self.config.get("subsample", False)
 
     def __len__(self):
@@ -122,11 +113,7 @@ class OC22LmdbDataset(Dataset):
             assert el_idx >= 0
 
             # Return features.
-            datapoint_pickled = (
-                self.envs[db_idx]
-                .begin()
-                .get(f"{self._keys[db_idx][el_idx]}".encode("ascii"))
-            )
+            datapoint_pickled = self.envs[db_idx].begin().get(f"{self._keys[db_idx][el_idx]}".encode("ascii"))
             data_object = pyg2_data_transform(pickle.loads(datapoint_pickled))
             data_object.id = f"{db_idx}_{el_idx}"
         else:

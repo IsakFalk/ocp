@@ -1,0 +1,215 @@
+config_file type=STRING scalar current_value=
+File as alternative input (newlines converted to spaces)
+
+config_file type=STRING scalar current_value=
+File as alternative input (newlines converted to spaces)
+
+atoms_filename type=STRING scalar current_value=//MANDATORY//
+XYZ file with fitting configurations
+
+at_file type=STRING scalar current_value=//MANDATORY//
+XYZ file with fitting configurations
+
+gap type=STRING scalar current_value=//MANDATORY//
+Initialisation string for GAPs
+
+e0 type=STRING scalar current_value=0.0
+Atomic energy value to be subtracted from energies before fitting (and added
+back on after prediction).  Specifiy a single number (used for all species) or
+by species: {Ti:-150.0:O:-320...}. energy = baseline + GAP +
+e0
+
+local_property0 type=STRING scalar current_value=0.0
+Local property value to be subtracted from the local property before fitting
+(and added back on after prediction).  Specifiy a single number (used for all
+species) or by species: {H:20.0:Cl:35.0...}.
+
+e0_offset type=REAL scalar current_value=0.0
+Offset of baseline. If zero, the offset is the average atomic energy of the inpu-
+t data or the e0 specified manually.
+
+e0_method type=STRING scalar current_value=isolated
+Method to determine e0, if not explicitly specified. Possible options: isolated
+(default, each atom present in the XYZ needs to have an isolated representative,
+with a valid energy), average (e0 is the average of all total energies across
+the XYZ)
+
+default_kernel_regularisation type=REAL dim=4 current_value=//MANDATORY//
+error in [energies forces virials hessians]
+
+default_sigma type=REAL dim=4 current_value=//MANDATORY//
+error in [energies forces virials hessians]
+
+default_kernel_regularisation_local_property type=REAL scalar current_value=0.001
+error in local_property
+
+default_local_property_sigma type=REAL scalar current_value=0.001
+error in local_property
+
+sparse_jitter type=REAL scalar current_value=1.0e-10
+Extra regulariser used to regularise the sparse covariance matrix before it is
+passed to the linear solver. Use something small, it really shouldn't affect
+your results, if it does, your sparse basis is still very ill-conditioned.
+
+hessian_displacement type=REAL scalar current_value=1.0e-2
+Finite displacement to use in numerical differentiation when obtaining second
+derivative for the Hessian covariance
+
+hessian_delta type=REAL scalar current_value=1.0e-2
+Finite displacement to use in numerical differentiation when obtaining second
+derivative for the Hessian covariance
+
+baseline_param_filename type=STRING scalar current_value=quip_params.xml
+QUIP XML file which contains a potential to subtract from data (and added back
+after prediction)
+
+core_param_file type=STRING scalar current_value=quip_params.xml
+QUIP XML file which contains a potential to subtract from data (and added back
+after prediction)
+
+baseline_ip_args type=STRING scalar current_value=
+ QUIP init string for a potential to subtract from data (and added back after
+prediction)
+
+core_ip_args type=STRING scalar current_value=
+ QUIP init string for a potential to subtract from data (and added back after
+prediction)
+
+energy_parameter_name type=STRING scalar current_value=energy
+Name of energy property in the input XYZ file that describes the data
+
+local_property_parameter_name type=STRING scalar current_value=local_property
+Name of local_property (column) in the input XYZ file that describes the data
+
+force_parameter_name type=STRING scalar current_value=force
+Name of force property (columns) in the input XYZ file that describes the data
+
+virial_parameter_name type=STRING scalar current_value=virial
+Name of virial property in the input XYZ file that describes the data
+
+stress_parameter_name type=STRING scalar current_value=stress
+Name of stress property (6-vector or 9-vector) in the input XYZ file that descri-
+bes the data - stress values only used if virials are not available (opposite
+sign, standard Voigt order)
+
+hessian_parameter_name type=STRING scalar current_value=hessian
+Name of hessian property (column) in the input XYZ file that describes the data
+
+config_type_parameter_name type=STRING scalar current_value=config_type
+Allows grouping on configurations into. This option is the name of the key that
+indicates the configuration type in the input XYZ file. With the default, the
+key-value pair config_type=blah would place that configuration into the group
+blah.
+
+kernel_regularisation_parameter_name type=STRING scalar current_value=sigma
+kernel regularisation parameters for a given configuration in the database. Over-
+rides the command line values (both defaults and config-type-specific values).
+In the input XYZ file, it must be prepended by energy_, force_, virial_ or hessi-
+an_
+
+sigma_parameter_name type=STRING scalar current_value=sigma
+kernel regularisation parameters for a given configuration in the database. Over-
+rides the command line values (both defaults and config-type-specific values).
+In the input XYZ file, it must be prepended by energy_, force_, virial_ or hessi-
+an_
+
+force_mask_parameter_name type=STRING scalar current_value=force_mask
+To exclude forces on specific atoms from the fit. In the XYZ, it must be a logic-
+al column.
+
+parameter_name_prefix type=STRING scalar current_value=
+Prefix that gets uniformly appended in front of {energy,local_property,force,vir-
+ial,...}_parameter_name
+
+config_type_kernel_regularisation type=STRING scalar current_value=
+What kernel regularisation values to choose for each type of data, when the conf-
+igurations are grouped into config_types. Format: {configtype1:energy:force:viri-
+al:hessian:config_type2:energy:force:virial:hessian...}
+
+config_type_sigma type=STRING scalar current_value=
+What kernel regularisation values to choose for each type of data, when the conf-
+igurations are grouped into config_types. Format: {configtype1:energy:force:viri-
+al:hessian:config_type2:energy:force:virial:hessian...}
+
+kernel_regularisation_is_per_atom type=LOGICAL scalar current_value=T
+Interpretation of the energy and virial sigmas specified in >>default_kernel_reg-
+ularisation<< and >>config_type_kernel_regularisation<<. If >>T<<, they are inte-
+rpreted as per-atom errors, and the variance will be scaled according to the
+number of atoms in the configuration. If >>F<< they are treated as absolute erro-
+rs and no scaling is performed. NOTE: values specified on a per-configuration
+basis (see >>kernel_regularisation_parameter_name<<) are always absolute, not
+per-atom.
+
+sigma_per_atom type=LOGICAL scalar current_value=T
+Interpretation of the energy and virial sigmas specified in >>default_kernel_reg-
+ularisation<< and >>config_type_kernel_regularisation<<. If >>T<<, they are inte-
+rpreted as per-atom errors, and the variance will be scaled according to the
+number of atoms in the configuration. If >>F<< they are treated as absolute erro-
+rs and no scaling is performed. NOTE: values specified on a per-configuration
+basis (see >>kernel_regularisation_parameter_name<<) are always absolute, not
+per-atom.
+
+do_copy_atoms_file type=LOGICAL scalar current_value=T
+Copy the input XYZ file into the GAP XML file (should be set to False for NetCDF
+input).
+
+do_copy_at_file type=LOGICAL scalar current_value=T
+Copy the input XYZ file into the GAP XML file (should be set to False for NetCDF
+input).
+
+sparse_separate_file type=LOGICAL scalar current_value=T
+Save sparse point data in separate file in binary (use it for large datasets)
+
+sparse_use_actual_gpcov type=LOGICAL scalar current_value=F
+Use actual GP covariance for sparsification methods
+
+gap_file type=STRING scalar current_value=gap_new.xml
+Name of output XML file that will contain the fitted potential
+
+gp_file type=STRING scalar current_value=gap_new.xml
+Name of output XML file that will contain the fitted potential
+
+verbosity type=STRING scalar current_value=NORMAL
+Verbosity control. Options: NORMAL, VERBOSE, NERD, ANALYSIS.
+
+rnd_seed type=INTEGER scalar current_value=-1
+Random seed.
+
+openmp_chunk_size type=INTEGER scalar current_value=0
+Chunk size in OpenMP scheduling; 0: each thread gets a single block of similar
+size (default)
+
+do_ip_timing type=LOGICAL scalar current_value=F
+To enable or not timing of the interatomic potential.
+
+template_file type=STRING scalar current_value=template.xyz
+Template XYZ file for initialising object
+
+sparsify_only_no_fit type=LOGICAL scalar current_value=F
+If true, sparsification is done, but no fitting. print the sparse index by addin-
+g print_sparse_index=file.dat to the descriptor string.
+
+dryrun type=LOGICAL scalar current_value=F
+If true, exits after memory estimate, before major allocations.
+
+condition_number_norm type=STRING scalar current_value=
+Norm for condition number of matrix A; O: 1-norm, I: inf-norm, <space>: skip
+calculation (default)
+
+linear_system_dump_file type=STRING scalar current_value=
+Basename prefix of linear system dump files. Skipped if empty (default).
+
+mpi_blocksize_rows type=INTEGER scalar current_value=0
+Blocksize of MPI distributed matrix rows. Affects efficiency and memory usage
+slightly. Max if 0 (default).
+
+mpi_blocksize_cols type=INTEGER scalar current_value=100
+Blocksize of MPI distributed matrix cols. Affects efficiency and memory usage
+considerably. Max if 0. Default:
+100
+
+mpi_print_all type=LOGICAL scalar current_value=F
+If true, each MPI processes will print its output. Otherwise, only the first
+process does (default).
+
+https://libatoms.github.io/GAP/gap_si_surface.html

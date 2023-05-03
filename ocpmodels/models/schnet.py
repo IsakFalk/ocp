@@ -94,8 +94,7 @@ class SchNetWrap(SchNet, BaseModel):
         # Added by: Isak Falk
         # If using the model as representation we output the intermediate layer
         if self.representation:
-            self.interactions = self.interactions[:self.representation_layer]
-            self.regress_forces = False
+            self.interactions = self.interactions[: self.representation_layer]
 
     @conditional_grad(torch.enable_grad())
     def _forward(self, data):
@@ -110,7 +109,9 @@ class SchNetWrap(SchNet, BaseModel):
             cell_offsets,
             _,  # cell offset distances
             neighbors,
-        ) = self.generate_graph(data) # See the BaseModel.generate_graph method for more details
+        ) = self.generate_graph(
+            data
+        )  # See the BaseModel.generate_graph method for more details
 
         # Added by: Isak Falk
         # Intermediate representation only works for self.use_pbc=True
@@ -120,6 +121,7 @@ class SchNetWrap(SchNet, BaseModel):
             edge_attr = self.distance_expansion(edge_weight)
 
             h = self.embedding(z)
+            # For potential representation output
             for interaction in self.interactions:
                 h = h + interaction(h, edge_index, edge_weight, edge_attr)
             if self.representation:

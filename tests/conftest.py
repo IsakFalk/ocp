@@ -118,9 +118,7 @@ class ApproxExtension(AmberSnapshotExtension):
                 atol=serialized_approx.atol,
             )
 
-        return super().matches(
-            serialized_data=serialized_data, snapshot_data=snapshot_data
-        )
+        return super().matches(serialized_data=serialized_data, snapshot_data=snapshot_data)
 
     def serialize(self, data, **kwargs):
         # we override the existing serialization behavior
@@ -131,9 +129,7 @@ class ApproxExtension(AmberSnapshotExtension):
             raise NotImplementedError("Scalar approx not implemented yet")
         return super().serialize(data, **kwargs)
 
-    def write_snapshot(
-        self, *, data: "SerializedData", index: "SnapshotIndex"
-    ) -> None:
+    def write_snapshot(self, *, data: "SerializedData", index: "SnapshotIndex") -> None:
         # Right before writing to file, we update the serialized snapshot data
         # and remove the atol/rtol from the string representation.
         # This is an implementation detail, and is not necessary for the extension to work.

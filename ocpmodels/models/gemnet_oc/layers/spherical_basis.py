@@ -48,13 +48,9 @@ class CircularBasisLayer(torch.nn.Module):
         del cbf_hparams["name"]
 
         if cbf_name == "gaussian":
-            self.cosφ_basis = GaussianBasis(
-                start=-1, stop=1, num_gaussians=num_spherical, **cbf_hparams
-            )
+            self.cosφ_basis = GaussianBasis(start=-1, stop=1, num_gaussians=num_spherical, **cbf_hparams)
         elif cbf_name == "spherical_harmonics":
-            self.cosφ_basis = get_sph_harm_basis(
-                num_spherical, zero_m_only=True
-            )
+            self.cosφ_basis = get_sph_harm_basis(num_spherical, zero_m_only=True)
         else:
             raise ValueError(f"Unknown cosine basis function '{cbf_name}'.")
 
@@ -106,26 +102,18 @@ class SphericalBasisLayer(torch.nn.Module):
         del sbf_hparams["name"]
 
         if sbf_name == "spherical_harmonics":
-            self.spherical_basis = get_sph_harm_basis(
-                num_spherical, zero_m_only=False
-            )
+            self.spherical_basis = get_sph_harm_basis(num_spherical, zero_m_only=False)
 
         elif sbf_name == "legendre_outer":
-            circular_basis = get_sph_harm_basis(
-                num_spherical, zero_m_only=True
-            )
+            circular_basis = get_sph_harm_basis(num_spherical, zero_m_only=True)
             self.spherical_basis = lambda cosφ, ϑ: (
-                circular_basis(cosφ)[:, :, None]
-                * circular_basis(torch.cos(ϑ))[:, None, :]
+                circular_basis(cosφ)[:, :, None] * circular_basis(torch.cos(ϑ))[:, None, :]
             ).reshape(cosφ.shape[0], -1)
 
         elif sbf_name == "gaussian_outer":
-            self.circular_basis = GaussianBasis(
-                start=-1, stop=1, num_gaussians=num_spherical, **sbf_hparams
-            )
+            self.circular_basis = GaussianBasis(start=-1, stop=1, num_gaussians=num_spherical, **sbf_hparams)
             self.spherical_basis = lambda cosφ, ϑ: (
-                self.circular_basis(cosφ)[:, :, None]
-                * self.circular_basis(torch.cos(ϑ))[:, None, :]
+                self.circular_basis(cosφ)[:, :, None] * self.circular_basis(torch.cos(ϑ))[:, None, :]
             ).reshape(cosφ.shape[0], -1)
 
         else:

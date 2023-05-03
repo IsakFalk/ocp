@@ -73,6 +73,4 @@ class RandomRotate(object):
         )
 
     def __repr__(self):
-        return "{}({}, axis={})".format(
-            self.__class__.__name__, self.degrees, self.axis
-        )
+        return "{}({}, axis={})".format(self.__class__.__name__, self.degrees, self.axis)

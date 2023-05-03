@@ -99,9 +99,7 @@ class CGCNN(BaseModel):
             ]
         )
 
-        self.conv_to_fc = nn.Sequential(
-            nn.Linear(atom_embedding_size, fc_feat_size), nn.Softplus()
-        )
+        self.conv_to_fc = nn.Sequential(nn.Linear(atom_embedding_size, fc_feat_size), nn.Softplus())
 
         if num_fc_layers > 1:
             layers = []
@@ -208,9 +206,7 @@ class CGCNNConv(MessagePassing):
             edge_index has shape [2, num_edges]
             edge_attr is [num_edges, edge_feat_size]
         """
-        out = self.propagate(
-            edge_index, x=x, edge_attr=edge_attr, size=(x.size(0), x.size(0))
-        )
+        out = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=(x.size(0), x.size(0)))
         out = nn.Softplus()(self.ln1(out) + x)
         return out
 

@@ -98,10 +98,7 @@ def main(args):
     os.makedirs(os.path.join(args.out_path), exist_ok=True)
 
     # Initialize lmdb paths
-    db_paths = [
-        os.path.join(args.out_path, "data.%04d.lmdb" % i)
-        for i in range(args.num_workers)
-    ]
+    db_paths = [os.path.join(args.out_path, "data.%04d.lmdb" % i) for i in range(args.num_workers)]
 
     # Chunk the trajectories into args.num_workers splits
     chunked_txt_files = np.array_split(xyz_logs, args.num_workers)
@@ -127,9 +124,7 @@ def main(args):
 
     # Log sampled image, trajectory trace
     for j, i in enumerate(range(args.num_workers)):
-        ids_log = open(
-            os.path.join(args.out_path, "data_log.%04d.txt" % i), "w"
-        )
+        ids_log = open(os.path.join(args.out_path, "data_log.%04d.txt" % i), "w")
         ids_log.writelines(sampled_ids[j])
 
 
@@ -154,9 +149,7 @@ def get_parser():
         default=1,
         help="No. of feature-extracting processes or no. of dataset chunks",
     )
-    parser.add_argument(
-        "--ref-energy", action="store_true", help="Subtract reference energies"
-    )
+    parser.add_argument("--ref-energy", action="store_true", help="Subtract reference energies")
     parser.add_argument(
         "--test-data",
         action="store_true",

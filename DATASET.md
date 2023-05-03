@@ -166,7 +166,7 @@ Adsorbate+catalyst trajectories on a per adsorbate basis are provided [here](./D
 
 
 ### Bader charge data
-We provide Bader charge data for all final frames of our train + validation systems in OC20 (for both S2EF and IS2RE/RS tasks). A `.tar.gz` file, when downloaded and uncompressed will contain several directories with unique system-ids (of the format `random<XYZ>` where `XYZ` is an integer). Each directory will contain raw Bader charge analysis outputs. For more details on the Bader charge analysis, see https://theory.cm.utexas.edu/henkelman/research/bader/. 
+We provide Bader charge data for all final frames of our train + validation systems in OC20 (for both S2EF and IS2RE/RS tasks). A `.tar.gz` file, when downloaded and uncompressed will contain several directories with unique system-ids (of the format `random<XYZ>` where `XYZ` is an integer). Each directory will contain raw Bader charge analysis outputs. For more details on the Bader charge analysis, see https://theory.cm.utexas.edu/henkelman/research/bader/.
 
 Downloadable link: https://dl.fbaipublicfiles.com/opencatalystproject/data/oc20_bader_data.tar (MD5 checksum: `aecc5e23542de49beceb4b7e44c153b9`)
 

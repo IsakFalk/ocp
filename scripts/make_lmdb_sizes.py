@@ -50,9 +50,7 @@ def main(args):
     _sort = np.argsort(indices)
     sorted_natoms = np.array(natoms, dtype=np.int32)[_sort]
     if None in neighbors:
-        warnings.warn(
-            f"edge_index information not found, {outpath} only supports atom-wise load balancing."
-        )
+        warnings.warn(f"edge_index information not found, {outpath} only supports atom-wise load balancing.")
         np.savez(outpath, natoms=sorted_natoms)
     else:
         sorted_neighbors = np.array(neighbors, dtype=np.int32)[_sort]

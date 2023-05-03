@@ -56,20 +56,14 @@ def main(*, num_batches: int = 16):
         trainer = ctx.trainer
 
         ckpt_file = config.get("checkpoint", None)
-        assert (
-            ckpt_file is not None
-        ), "Checkpoint file not specified. Please specify --checkpoint <path>"
+        assert ckpt_file is not None, "Checkpoint file not specified. Please specify --checkpoint <path>"
         ckpt_file = Path(ckpt_file)
 
-        logging.info(
-            f"Input checkpoint path: {ckpt_file}, {ckpt_file.exists()=}"
-        )
+        logging.info(f"Input checkpoint path: {ckpt_file}, {ckpt_file.exists()=}")
 
         model: nn.Module = trainer.model
         val_loader = trainer.val_loader
-        assert (
-            val_loader is not None
-        ), "Val dataset is required for making predictions"
+        assert val_loader is not None, "Val dataset is required for making predictions"
 
         if ckpt_file.exists():
             trainer.load_checkpoint(str(ckpt_file))
@@ -77,13 +71,9 @@ def main(*, num_batches: int = 16):
         # region reoad scale file contents if necessary
         # unwrap module from DP/DDP
         unwrapped_model = model
-        while isinstance(
-            unwrapped_model, (DistributedDataParallel, OCPDataParallel)
-        ):
+        while isinstance(unwrapped_model, (DistributedDataParallel, OCPDataParallel)):
             unwrapped_model = unwrapped_model.module
-        assert isinstance(
-            unwrapped_model, nn.Module
-        ), "Model is not a nn.Module"
+        assert isinstance(unwrapped_model, nn.Module), "Model is not a nn.Module"
         load_scales_compat(unwrapped_model, config.get("scale_file", None))
         # endregion
 
@@ -91,22 +81,16 @@ def main(*, num_batches: int = 16):
 
         # recursively go through the submodules and get the ScaleFactor modules
         scale_factors: Dict[str, ScaleFactor] = {
-            name: module
-            for name, module in model.named_modules()
-            if isinstance(module, ScaleFactor)
+            name: module for name, module in model.named_modules() if isinstance(module, ScaleFactor)
         }
 
         mode: Literal["all", "unfitted"] = "all"
 
         # region detect fitted/unfitted factors
         fitted_scale_factors = [
-            f"{name}: {module.scale_factor.item():.3f}"
-            for name, module in scale_factors.items()
-            if module.fitted
+            f"{name}: {module.scale_factor.item():.3f}" for name, module in scale_factors.items() if module.fitted
         ]
-        unfitted_scale_factors = [
-            name for name, module in scale_factors.items() if not module.fitted
-        ]
+        unfitted_scale_factors = [name for name, module in scale_factors.items() if not module.fitted]
         fitted_scale_factors_str = ", ".join(fitted_scale_factors)
         logging.info(f"Fitted scale factors: [{fitted_scale_factors_str}]")
         unfitted_scale_factors_str = ", ".join(unfitted_scale_factors)
@@ -138,19 +122,14 @@ def main(*, num_batches: int = 16):
         )
         if out_path.exists():
             logging.warning(f"Already found existing file: {out_path}")
-            flag = input(
-                "Do you want to continue and overwrite existing file (1), "
-                "or exit (2)? "
-            )
+            flag = input("Do you want to continue and overwrite existing file (1), " "or exit (2)? ")
             if str(flag) == "1":
                 logging.info("Overwriting existing file.")
             else:
                 logging.info("Exiting script")
                 sys.exit()
 
-        logging.info(
-            f"Output path for fitted scale factors: {out_path}, {out_path.exists()=}"
-        )
+        logging.info(f"Output path for fitted scale factors: {out_path}, {out_path.exists()=}")
         # endregion
 
         # region reset the scale factors if mode == "all"

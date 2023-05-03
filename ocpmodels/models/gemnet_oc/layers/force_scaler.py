@@ -67,10 +67,7 @@ class ForceScaler:
                     # Prevent infinite loop
                     force_iters += 1
                     if force_iters == self.max_force_iters:
-                        logging.warning(
-                            "Too many non-finite force results in a batch. "
-                            "Breaking scaling loop."
-                        )
+                        logging.warning("Too many non-finite force results in a batch. " "Breaking scaling loop.")
                         break
                     else:
                         # Delete graph to save memory

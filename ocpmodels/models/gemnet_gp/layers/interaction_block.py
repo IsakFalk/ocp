@@ -131,10 +131,7 @@ class InteractionBlockTripletsOnly(torch.nn.Module):
             activation=activation,
         )
         self.residual_m = torch.nn.ModuleList(
-            [
-                ResidualLayer(emb_size_edge, activation=activation)
-                for _ in range(num_concat)
-            ]
+            [ResidualLayer(emb_size_edge, activation=activation) for _ in range(num_concat)]
         )
 
         self.inv_sqrt_2 = 1 / math.sqrt(2.0)
@@ -270,9 +267,7 @@ class TripletInteraction(torch.nn.Module):
         )
         self.scale_rbf = ScaleFactor(name + "_had_rbf")
 
-        self.mlp_cbf = EfficientInteractionBilinear(
-            emb_size_trip, emb_size_cbf, emb_size_bilinear
-        )
+        self.mlp_cbf = EfficientInteractionBilinear(emb_size_trip, emb_size_cbf, emb_size_bilinear)
 
         # combines scaling for bilinear layer and summation
         self.scale_cbf_sum = ScaleFactor(name + "_sum_cbf")

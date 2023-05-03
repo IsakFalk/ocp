@@ -11,9 +11,9 @@ import ase
 import numpy as np
 import pytest
 import torch
+from ase.build import molecule
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
-from ase.build import molecule
 from pymatgen.io.ase import AseAtomsAdaptor
 from torch_geometric.transforms.radius_graph import RadiusGraph
 from torch_geometric.utils.sort_edge_index import sort_edge_index
@@ -41,9 +41,7 @@ def load_data(request):
     request.cls.data = data_list[0]
 
 
-def check_features_match(
-    edge_index_1, cell_offsets_1, edge_index_2, cell_offsets_2
-):
+def check_features_match(edge_index_1, cell_offsets_1, edge_index_2, cell_offsets_2):
     # Combine both edge indices and offsets to one tensor
     features_1 = torch.cat((edge_index_1, cell_offsets_1.T), dim=0).T
     features_2 = torch.cat((edge_index_2, cell_offsets_2.T), dim=0).T.long()
@@ -77,9 +75,7 @@ class TestRadiusGraphPBC:
 
         edge_index, cell_offsets, neighbors = out
 
-        assert check_features_match(
-            batch.edge_index, batch.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(batch.edge_index, batch.cell_offsets, out[0], out[1])
 
     def test_bulk(self):
         radius = 10
@@ -108,9 +104,7 @@ class TestRadiusGraphPBC:
             pbc=[False, False, False],
         )
 
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])
 
         # [True, False, False]
         structure.cell[0] /= radius
@@ -123,9 +117,7 @@ class TestRadiusGraphPBC:
             max_num_neighbors_threshold=max_neigh,
             pbc=[True, False, False],
         )
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])
 
         # [True, True, False]
         structure.cell[1] /= radius
@@ -138,9 +130,7 @@ class TestRadiusGraphPBC:
             max_num_neighbors_threshold=max_neigh,
             pbc=[True, True, False],
         )
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])
 
         # [False, True, False]
         structure.cell[0] *= radius
@@ -153,9 +143,7 @@ class TestRadiusGraphPBC:
             max_num_neighbors_threshold=max_neigh,
             pbc=[False, True, False],
         )
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])
 
         # [False, True, True]
         structure.cell[2] /= radius
@@ -168,9 +156,7 @@ class TestRadiusGraphPBC:
             max_num_neighbors_threshold=max_neigh,
             pbc=[False, True, True],
         )
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])
 
         # [False, False, True]
         structure.cell[1] *= radius
@@ -183,9 +169,7 @@ class TestRadiusGraphPBC:
             max_num_neighbors_threshold=max_neigh,
             pbc=[False, False, True],
         )
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])
 
         # [True, False, True]
         structure.cell[0] /= radius
@@ -198,9 +182,7 @@ class TestRadiusGraphPBC:
             max_num_neighbors_threshold=max_neigh,
             pbc=[True, False, True],
         )
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])
 
         # [True, True, True]
         structure.cell[1] /= radius
@@ -214,9 +196,7 @@ class TestRadiusGraphPBC:
             pbc=[True, True, True],
         )
 
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])
 
         # Ensure edges are actually found
         assert non_pbc > 0
@@ -240,9 +220,7 @@ class TestRadiusGraphPBC:
             max_num_neighbors_threshold=max_neigh,
             pbc=[False, False, False],
         )
-        assert (
-            sort_edge_index(out[0]) == sort_edge_index(radgraph.edge_index)
-        ).all()
+        assert (sort_edge_index(out[0]) == sort_edge_index(radgraph.edge_index)).all()
 
     def test_molecule(self):
         radius = 6
@@ -259,6 +237,4 @@ class TestRadiusGraphPBC:
             pbc=[False, False, False],
         )
 
-        assert check_features_match(
-            data.edge_index, data.cell_offsets, out[0], out[1]
-        )
+        assert check_features_match(data.edge_index, data.cell_offsets, out[0], out[1])

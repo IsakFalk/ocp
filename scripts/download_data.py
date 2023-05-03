@@ -99,7 +99,7 @@ DOWNLOAD_LINKS = {
         "*NO3": "https://dl.fbaipublicfiles.com/opencatalystproject/data/per_adsorbate_is2res/78.tar",
         "*OHNH2": "https://dl.fbaipublicfiles.com/opencatalystproject/data/per_adsorbate_is2res/79.tar",
         "*ONOH": "https://dl.fbaipublicfiles.com/opencatalystproject/data/per_adsorbate_is2res/80.tar",
-        "*CN": "https://dl.fbaipublicfiles.com/opencatalystproject/data/per_adsorbate_is2res/81.tar"
+        "*CN": "https://dl.fbaipublicfiles.com/opencatalystproject/data/per_adsorbate_is2res/81.tar",
     },
     "is2re": "https://dl.fbaipublicfiles.com/opencatalystproject/data/is2res_train_val_test_lmdbs.tar.gz",
 }
@@ -141,10 +141,7 @@ def get_data(datadir, task, split, adsorbate, del_intmd_files):
     logging.info("Extracting contents...")
     os.system(f"tar -xvf {filename} -C {datadir}")
 
-    dirname = os.path.join(
-        datadir,
-        os.path.basename(filename).split(".")[0]
-    )
+    dirname = os.path.join(datadir, os.path.basename(filename).split(".")[0])
     if task == "s2ef" and split != "test":
         compressed_dir = os.path.join(dirname, os.path.basename(dirname))
         if split in ["200k", "2M", "20M", "all", "rattled", "md"]:
@@ -163,7 +160,6 @@ def get_data(datadir, task, split, adsorbate, del_intmd_files):
         output_path = os.path.join(datadir, "is2re_adsorbate")
         os.makedirs(output_path, exist_ok=True)
         os.system(f"mv {dirname} {output_path}")
-
 
     if del_intmd_files:
         cleanup(filename, dirname)
@@ -216,9 +212,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, help="Task to download")
     parser.add_argument("--adsorbate", type=str, help="Adsorbate for when task is is2re_adsorbate")
-    parser.add_argument(
-        "--split", type=str, help="Corresponding data split to download"
-    )
+    parser.add_argument("--split", type=str, help="Corresponding data split to download")
     parser.add_argument(
         "--keep",
         action="store_true",
@@ -236,9 +230,7 @@ if __name__ == "__main__":
         default=1,
         help="No. of feature-extracting processes or no. of dataset chunks",
     )
-    parser.add_argument(
-        "--ref-energy", action="store_true", help="Subtract reference energies"
-    )
+    parser.add_argument("--ref-energy", action="store_true", help="Subtract reference energies")
     parser.add_argument(
         "--data-path",
         type=str,

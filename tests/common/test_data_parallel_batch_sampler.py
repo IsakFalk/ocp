@@ -97,9 +97,7 @@ def test_lowercase(invalid_dataset):
 
 
 def test_invalid_mode(invalid_dataset):
-    with pytest.raises(
-        ValueError, match="Must be one of 'atoms', 'neighbors', or a boolean."
-    ):
+    with pytest.raises(ValueError, match="Must be one of 'atoms', 'neighbors', or a boolean."):
         BalancedBatchSampler(
             dataset=invalid_dataset,
             batch_size=1,
@@ -110,9 +108,7 @@ def test_invalid_mode(invalid_dataset):
             throw_on_error=True,
         )
 
-    with pytest.raises(
-        ValueError, match="Must be one of 'atoms', 'neighbors', or a boolean."
-    ):
+    with pytest.raises(ValueError, match="Must be one of 'atoms', 'neighbors', or a boolean."):
         BalancedBatchSampler(
             dataset=invalid_dataset,
             batch_size=1,

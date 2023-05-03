@@ -40,9 +40,7 @@ class LRScheduler:
             return
         if self.scheduler_type == "ReduceLROnPlateau":
             if metrics is None:
-                raise Exception(
-                    "Validation set required for ReduceLROnPlateau."
-                )
+                raise Exception("Validation set required for ReduceLROnPlateau.")
             self.scheduler.step(metrics)
         else:
             self.scheduler.step()
@@ -50,15 +48,9 @@ class LRScheduler:
     def filter_kwargs(self, config):
         # adapted from https://stackoverflow.com/questions/26515595/
         sig = inspect.signature(self.scheduler)
-        filter_keys = [
-            param.name
-            for param in sig.parameters.values()
-            if param.kind == param.POSITIONAL_OR_KEYWORD
-        ]
+        filter_keys = [param.name for param in sig.parameters.values() if param.kind == param.POSITIONAL_OR_KEYWORD]
         filter_keys.remove("optimizer")
-        scheduler_args = {
-            arg: self.config[arg] for arg in self.config if arg in filter_keys
-        }
+        scheduler_args = {arg: self.config[arg] for arg in self.config if arg in filter_keys}
         return scheduler_args
 
     def get_lr(self):

@@ -37,22 +37,16 @@ class ExponentialMovingAverage:
         self.decay = decay
         self.num_updates = 0 if use_num_updates else None
         parameters = list(parameters)
-        self.shadow_params = [
-            p.clone().detach() for p in parameters if p.requires_grad
-        ]
+        self.shadow_params = [p.clone().detach() for p in parameters if p.requires_grad]
         self.collected_params = []
         # By maintaining only a weakref to each parameter,
         # we maintain the old GC behaviour of ExponentialMovingAverage:
         # if the model goes out of scope but the ExponentialMovingAverage
         # is kept, no references to the model or its parameters will be
         # maintained, and the model will be cleaned up.
-        self._params_refs = [
-            weakref.ref(p) for p in parameters if p.requires_grad
-        ]
+        self._params_refs = [weakref.ref(p) for p in parameters if p.requires_grad]
 
-    def _get_parameters(
-        self, parameters: Optional[Iterable[torch.nn.Parameter]]
-    ) -> Iterable[torch.nn.Parameter]:
+    def _get_parameters(self, parameters: Optional[Iterable[torch.nn.Parameter]]) -> Iterable[torch.nn.Parameter]:
         if parameters is None:
             parameters = [p() for p in self._params_refs]
             if any(p is None for p in parameters):
@@ -68,9 +62,7 @@ class ExponentialMovingAverage:
         else:
             return [p for p in parameters if p.requires_grad]
 
-    def update(
-        self, parameters: Optional[Iterable[torch.nn.Parameter]] = None
-    ) -> None:
+    def update(self, parameters: Optional[Iterable[torch.nn.Parameter]] = None) -> None:
         """
         Update currently maintained parameters.
 
@@ -87,18 +79,14 @@ class ExponentialMovingAverage:
         decay = self.decay
         if self.num_updates is not None:
             self.num_updates += 1
-            decay = min(
-                decay, (1 + self.num_updates) / (10 + self.num_updates)
-            )
+            decay = min(decay, (1 + self.num_updates) / (10 + self.num_updates))
         one_minus_decay = 1.0 - decay
         with torch.no_grad():
             for s_param, param in zip(self.shadow_params, parameters):
                 tmp = param - s_param
                 s_param.add_(tmp, alpha=one_minus_decay)
 
-    def copy_to(
-        self, parameters: Optional[Iterable[torch.nn.Parameter]] = None
-    ) -> None:
+    def copy_to(self, parameters: Optional[Iterable[torch.nn.Parameter]] = None) -> None:
         """
         Copy current parameters into given collection of parameters.
 
@@ -112,9 +100,7 @@ class ExponentialMovingAverage:
         for s_param, param in zip(self.shadow_params, parameters):
             param.data.copy_(s_param.data)
 
-    def store(
-        self, parameters: Optional[Iterable[torch.nn.Parameter]] = None
-    ) -> None:
+    def store(self, parameters: Optional[Iterable[torch.nn.Parameter]] = None) -> None:
         """
         Save the current parameters for restoring later.
 
@@ -126,9 +112,7 @@ class ExponentialMovingAverage:
         parameters = self._get_parameters(parameters)
         self.collected_params = [param.clone() for param in parameters]
 
-    def restore(
-        self, parameters: Optional[Iterable[torch.nn.Parameter]] = None
-    ) -> None:
+    def restore(self, parameters: Optional[Iterable[torch.nn.Parameter]] = None) -> None:
         """
         Restore the parameters stored with the `store` method.
         Useful to validate the model with EMA parameters without affecting the
@@ -173,30 +157,16 @@ class ExponentialMovingAverage:
             raise ValueError("Decay must be between 0 and 1")
 
         self.num_updates = state_dict["num_updates"]
-        assert self.num_updates is None or isinstance(
-            self.num_updates, int
-        ), "Invalid num_updates"
+        assert self.num_updates is None or isinstance(self.num_updates, int), "Invalid num_updates"
 
-        assert isinstance(
-            state_dict["shadow_params"], list
-        ), "shadow_params must be a list"
-        self.shadow_params = [
-            p.to(self.shadow_params[i].device)
-            for i, p in enumerate(state_dict["shadow_params"])
-        ]
-        assert all(
-            isinstance(p, torch.Tensor) for p in self.shadow_params
-        ), "shadow_params must all be Tensors"
+        assert isinstance(state_dict["shadow_params"], list), "shadow_params must be a list"
+        self.shadow_params = [p.to(self.shadow_params[i].device) for i, p in enumerate(state_dict["shadow_params"])]
+        assert all(isinstance(p, torch.Tensor) for p in self.shadow_params), "shadow_params must all be Tensors"
 
-        assert isinstance(
-            state_dict["collected_params"], list
-        ), "collected_params must be a list"
+        assert isinstance(state_dict["collected_params"], list), "collected_params must be a list"
         # collected_params is empty at initialization,
         # so use shadow_params for device instead
         self.collected_params = [
-            p.to(self.shadow_params[i].device)
-            for i, p in enumerate(state_dict["collected_params"])
+            p.to(self.shadow_params[i].device) for i, p in enumerate(state_dict["collected_params"])
         ]
-        assert all(
-            isinstance(p, torch.Tensor) for p in self.collected_params
-        ), "collected_params must all be Tensors"
+        assert all(isinstance(p, torch.Tensor) for p in self.collected_params), "collected_params must all be Tensors"

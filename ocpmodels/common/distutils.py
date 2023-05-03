@@ -20,9 +20,7 @@ def setup(config):
             node_list = os.environ.get("SLURM_JOB_NODELIST")
         if node_list is not None:
             try:
-                hostnames = subprocess.check_output(
-                    ["scontrol", "show", "hostnames", node_list]
-                )
+                hostnames = subprocess.check_output(["scontrol", "show", "hostnames", node_list])
                 config["init_method"] = "tcp://{host}:{port}".format(
                     host=hostnames.split()[0].decode("utf-8"),
                     port=config["distributed_port"],
@@ -47,9 +45,7 @@ def setup(config):
                     config["rank"] = int(os.environ.get("SLURM_PROCID"))
                     config["local_rank"] = int(os.environ.get("SLURM_LOCALID"))
 
-                logging.info(
-                    f"Init: {config['init_method']}, {config['world_size']}, {config['rank']}"
-                )
+                logging.info(f"Init: {config['init_method']}, {config['world_size']}, {config['rank']}")
 
                 # ensures GPU0 does not have extra context/higher peak memory
                 torch.cuda.set_device(config["local_rank"])
@@ -67,12 +63,10 @@ def setup(config):
     elif config["summit"]:
         world_size = int(os.environ["OMPI_COMM_WORLD_SIZE"])
         world_rank = int(os.environ["OMPI_COMM_WORLD_RANK"])
-        get_master = (
-            "echo $(cat {} | sort | uniq | grep -v batch | grep -v login | head -1)"
-        ).format(os.environ["LSB_DJOB_HOSTFILE"])
-        os.environ["MASTER_ADDR"] = str(
-            subprocess.check_output(get_master, shell=True)
-        )[2:-3]
+        get_master = ("echo $(cat {} | sort | uniq | grep -v batch | grep -v login | head -1)").format(
+            os.environ["LSB_DJOB_HOSTFILE"]
+        )
+        os.environ["MASTER_ADDR"] = str(subprocess.check_output(get_master, shell=True))[2:-3]
         os.environ["MASTER_PORT"] = "23456"
         os.environ["WORLD_SIZE"] = os.environ["OMPI_COMM_WORLD_SIZE"]
         os.environ["RANK"] = os.environ["OMPI_COMM_WORLD_RANK"]
@@ -84,9 +78,7 @@ def setup(config):
             init_method="env://",
         )
     else:
-        dist.init_process_group(
-            backend=config["distributed_backend"], init_method="env://"
-        )
+        dist.init_process_group(backend=config["distributed_backend"], init_method="env://")
     # TODO: SLURM
 
 
@@ -148,9 +140,7 @@ def all_gather(data, group=dist.group.WORLD, device=None):
         tensor = torch.tensor(data)
     if device is not None:
         tensor = tensor.cuda(device)
-    tensor_list = [
-        tensor.new_zeros(tensor.shape) for _ in range(get_world_size())
-    ]
+    tensor_list = [tensor.new_zeros(tensor.shape) for _ in range(get_world_size())]
     dist.all_gather(tensor_list, tensor, group=group)
     if not isinstance(data, torch.Tensor):
         result = [tensor.cpu().numpy() for tensor in tensor_list]

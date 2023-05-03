@@ -11,15 +11,11 @@ import torch.nn as nn
 
 # Different encodings for the atom distance embeddings
 class GaussianSmearing(torch.nn.Module):
-    def __init__(
-        self, start=-5.0, stop=5.0, num_gaussians=50, basis_width_scalar=1.0
-    ):
+    def __init__(self, start=-5.0, stop=5.0, num_gaussians=50, basis_width_scalar=1.0):
         super(GaussianSmearing, self).__init__()
         self.num_output = num_gaussians
         offset = torch.linspace(start, stop, num_gaussians)
-        self.coeff = (
-            -0.5 / (basis_width_scalar * (offset[1] - offset[0])).item() ** 2
-        )
+        self.coeff = -0.5 / (basis_width_scalar * (offset[1] - offset[0])).item() ** 2
         self.register_buffer("offset", offset)
 
     def forward(self, dist):
@@ -28,9 +24,7 @@ class GaussianSmearing(torch.nn.Module):
 
 
 class SigmoidSmearing(torch.nn.Module):
-    def __init__(
-        self, start=-5.0, stop=5.0, num_sigmoid=50, basis_width_scalar=1.0
-    ):
+    def __init__(self, start=-5.0, stop=5.0, num_sigmoid=50, basis_width_scalar=1.0):
         super(SigmoidSmearing, self).__init__()
         self.num_output = num_sigmoid
         offset = torch.linspace(start, stop, num_sigmoid)
@@ -43,9 +37,7 @@ class SigmoidSmearing(torch.nn.Module):
 
 
 class LinearSigmoidSmearing(torch.nn.Module):
-    def __init__(
-        self, start=-5.0, stop=5.0, num_sigmoid=50, basis_width_scalar=1.0
-    ):
+    def __init__(self, start=-5.0, stop=5.0, num_sigmoid=50, basis_width_scalar=1.0):
         super(LinearSigmoidSmearing, self).__init__()
         self.num_output = num_sigmoid
         offset = torch.linspace(start, stop, num_sigmoid)
@@ -59,9 +51,7 @@ class LinearSigmoidSmearing(torch.nn.Module):
 
 
 class SiLUSmearing(torch.nn.Module):
-    def __init__(
-        self, start=-5.0, stop=5.0, num_output=50, basis_width_scalar=1.0
-    ):
+    def __init__(self, start=-5.0, stop=5.0, num_output=50, basis_width_scalar=1.0):
         super(SiLUSmearing, self).__init__()
         self.num_output = num_output
         self.fc1 = nn.Linear(2, num_output)

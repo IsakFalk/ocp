@@ -51,18 +51,14 @@ if __name__ == "__main__":
     config = build_config(args, override_args)
 
     if args.submit:  # Run on cluster
-        slurm_add_params = config.get(
-            "slurm", None
-        )  # additional slurm arguments
+        slurm_add_params = config.get("slurm", None)  # additional slurm arguments
         if args.sweep_yml:  # Run grid search
             configs = create_grid(config, args.sweep_yml)
         else:
             configs = [config]
 
         logging.info(f"Submitting {len(configs)} jobs")
-        executor = submitit.AutoExecutor(
-            folder=args.logdir / "%j", slurm_max_num_timeout=3
-        )
+        executor = submitit.AutoExecutor(folder=args.logdir / "%j", slurm_max_num_timeout=3)
         executor.update_parameters(
             name=args.identifier,
             mem_gb=args.slurm_mem,
@@ -78,9 +74,7 @@ if __name__ == "__main__":
             config["slurm"] = copy.deepcopy(executor.parameters)
             config["slurm"]["folder"] = str(executor.folder)
         jobs = executor.map_array(Runner(), configs)
-        logging.info(
-            f"Submitted jobs: {', '.join([job.job_id for job in jobs])}"
-        )
+        logging.info(f"Submitted jobs: {', '.join([job.job_id for job in jobs])}")
         log_file = save_experiment_log(args, jobs, configs)
         logging.info(f"Experiment log saved to: {log_file}")
 

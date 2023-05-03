@@ -115,3 +115,7 @@ Local
 .vscode/
 
 EXTRA.org
+*.png
+pyrightconfig.json
+**/predictions/**/*
+runs/**/*

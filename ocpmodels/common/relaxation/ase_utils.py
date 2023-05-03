@@ -105,9 +105,7 @@ class OCPCalculator(Calculator):
                 if "includes" in config:
                     for include in config["includes"]:
                         # Change the path based on absolute path of config_yml
-                        path = os.path.join(
-                            config_yml.split("configs")[0], include
-                        )
+                        path = os.path.join(config_yml.split("configs")[0], include)
                         include_config = yaml.safe_load(open(path, "r"))
                         config.update(include_config)
             else:
@@ -119,9 +117,7 @@ class OCPCalculator(Calculator):
                 config["dataset"] = config["dataset"].get("train", None)
         else:
             # Loads the config from the checkpoint directly (always on CPU).
-            config = torch.load(checkpoint, map_location=torch.device("cpu"))[
-                "config"
-            ]
+            config = torch.load(checkpoint, map_location=torch.device("cpu"))["config"]
         if trainer is not None:  # passing the arg overrides everything else
             config["trainer"] = trainer
         else:
@@ -156,9 +152,7 @@ class OCPCalculator(Calculator):
             del config["dataset"]["src"]
             config["normalizer"] = config["dataset"]
 
-        self.trainer = registry.get_trainer_class(
-            config.get("trainer", "energy")
-        )(
+        self.trainer = registry.get_trainer_class(config.get("trainer", "energy"))(
             task=config["task"],
             model=config["model"],
             dataset=None,
@@ -202,9 +196,7 @@ class OCPCalculator(Calculator):
         data_object = self.a2g.convert(atoms)
         batch = data_list_collater([data_object], otf_graph=True)
 
-        predictions = self.trainer.predict(
-            batch, per_image=False, disable_tqdm=True
-        )
+        predictions = self.trainer.predict(batch, per_image=False, disable_tqdm=True)
         if self.trainer.name == "s2ef":
             self.results["energy"] = predictions["energy"].item()
             self.results["forces"] = predictions["forces"].cpu().numpy()

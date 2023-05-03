@@ -49,9 +49,7 @@ def _load_scale_dict(scale_file: Optional[Union[str, ScaleDict]]):
     return scale_dict
 
 
-def load_scales_compat(
-    module: nn.Module, scale_file: Optional[Union[str, ScaleDict]]
-):
+def load_scales_compat(module: nn.Module, scale_file: Optional[Union[str, ScaleDict]]):
     scale_dict = _load_scale_dict(scale_file)
     if not scale_dict:
         return
@@ -61,16 +59,12 @@ def load_scales_compat(
         for name, module in module.named_modules()
         if isinstance(module, ScaleFactor)
     }
-    logging.debug(
-        f"Found the following scale factors: {[(k, name) for k, (_, name) in scale_factors.items()]}"
-    )
+    logging.debug(f"Found the following scale factors: {[(k, name) for k, (_, name) in scale_factors.items()]}")
     for name, scale in scale_dict.items():
         if name not in scale_factors:
             logging.warning(f"Scale factor {name} not found in model")
             continue
 
         scale_module, module_name = scale_factors[name]
-        logging.debug(
-            f"Loading scale factor {scale} for ({name} => {module_name})"
-        )
+        logging.debug(f"Loading scale factor {scale} for ({name} => {module_name})")
         scale_module.set_(scale)

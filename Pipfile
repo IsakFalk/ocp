@@ -10,7 +10,6 @@ name = "downloadpytorch"
 
 [packages]
 ase = "3.21.1"
-black = "22.3.0"
 matplotlib = "*"
 numba = "*"
 pymatgen = "2020.12.31"
@@ -19,7 +18,6 @@ tensorboard = "*"
 tqdm = "*"
 lmdb = "*"
 submitit = "*"
-wandb = "*"
 # pyg-lib = {index = "pytorch-geometric", version= "*"}
 # Doesn't work so install through pip
 # torch-scatter = {index= "pytorch-geometric", version= "*"}
@@ -27,16 +25,23 @@ wandb = "*"
 # torch-cluster = {index= "pytorch-geometric", version= "*"}
 # torch-spline-conv = {index= "pytorch-geometric", version= "*"}
 # torch-geometric = {index= "pytorch-geometric", version= "*"}
-pyflakes = "*"
-isort = "*"
-jupyter = "*"
-torch = {version = "==1.13.1+cu117", index = "downloadpytorch"}
+torch = {version = "==2.0.0+cu118", index = "downloadpytorch"}
+quippy-ase = "*"
+sgdml = "*"
+torchviz = "*"
 
 [dev-packages]
 pre-commit = "2.10"
 pytest = "*"
 syrupy = "*"
 ocp-models = {editable = true, path = "."}
+black = "22.3.0"
+pylint = "*"
+pyflakes = "*"
+isort = "*"
+wandb = "*"
+autoflake = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.9"

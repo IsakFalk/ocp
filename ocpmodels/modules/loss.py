@@ -70,12 +70,8 @@ class DDPLoss(nn.Module):
         else:  # atom-wise loss
             loss = self.loss_fn(input, target, natoms)
         if self.reduction == "mean":
-            num_samples = (
-                batch_size if batch_size is not None else input.shape[0]
-            )
-            num_samples = distutils.all_reduce(
-                num_samples, device=input.device
-            )
+            num_samples = batch_size if batch_size is not None else input.shape[0]
+            num_samples = distutils.all_reduce(num_samples, device=input.device)
             # Multiply by world size since gradients are averaged
             # across DDP replicas
             return loss * distutils.get_world_size() / num_samples

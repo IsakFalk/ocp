@@ -1,47 +1,18 @@
-"""Added by Isak Falk
-
-This file contains extra classes and functions that are not part of the original OCP code.
-
-At some point we will refactor this code to be more in line with the original
-OCP code. For now, we just want to get it working.
-"""
-import datetime
+import copy
 import errno
 import logging
 import os
 import random
-import subprocess
-import copy
-from abc import ABC, abstractmethod
-from collections import defaultdict
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import yaml
 from torch.nn.parallel.distributed import DistributedDataParallel
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
-import ocpmodels
-from ocpmodels.common import distutils, gp_utils
-from ocpmodels.common.data_parallel import (
-    BalancedBatchSampler,
-    OCPDataParallel,
-    ParallelCollater,
-)
+from ocpmodels.common import distutils
+from ocpmodels.common.data_parallel import OCPDataParallel
 from ocpmodels.common.registry import registry
-from ocpmodels.common.utils import load_state_dict, save_checkpoint
-from ocpmodels.modules.evaluator import Evaluator
-from ocpmodels.modules.exponential_moving_average import (
-    ExponentialMovingAverage,
-)
-from ocpmodels.modules.loss import AtomwiseL2Loss, DDPLoss, L2MAELoss
-from ocpmodels.modules.normalizer import Normalizer
-from ocpmodels.modules.scaling.compat import load_scales_compat
-from ocpmodels.modules.scaling.util import ensure_fitted
-from ocpmodels.modules.scheduler import LRScheduler
+
 
 class BaseLoader:
     """Base class for model loaders.
@@ -60,8 +31,10 @@ class BaseLoader:
     def __init__(
         self,
         model,
-        representation=False,
-        representation_kwargs={},
+        representation: bool = False,
+        representation_kwargs: dict = {},
+        regress_forces: bool = True,
+        use_pbc: bool = True,
         seed=None,
         cpu=False,
         name="base_model_loader",
@@ -69,14 +42,16 @@ class BaseLoader:
         self.name = name
         self.representation = representation
         self.representation_kwargs = representation_kwargs
-        self.cpu = cpu # TODO: Have not been tested with cuda but should work
-        self.num_targets = 1 # NOTE: This is due to OCP code and should be fixed to 1
+        self.regress_forces = regress_forces
+        self.use_pbc = use_pbc
+        self.cpu = cpu  # TODO: Have not been tested with cuda but should work
+        self.num_targets = 1  # NOTE: This is due to OCP code and should be fixed to 1
 
         # Don't mutate the original model dict
         model = copy.deepcopy(model)
 
         if torch.cuda.is_available() and not self.cpu:
-            self.device = torch.device(f"cuda:0")
+            self.device = torch.device("cuda:0")
         else:
             self.device = torch.device("cpu")
             self.cpu = True
@@ -88,11 +63,12 @@ class BaseLoader:
         self.config = {
             "model": model.pop("model"),
             "model_attributes": model["model_attributes"],
-            "seed": seed
+            "seed": seed,
         }
+        self.config["model_attributes"]["use_pbc"] = self.use_pbc
 
         # Print the current config to stdout
-        print(yaml.dump(self.config, default_flow_style=False))
+        # print(yaml.dump(self.config, default_flow_style=False))
         self.load()
 
     def load(self):
@@ -120,42 +96,38 @@ class BaseLoader:
         # using strings through a key-value store mapping strings to the correct
         # class object
         # This makes the registry available
+        # Doesn't work for now
         from ocpmodels.common.utils import setup_imports
+
         setup_imports()
 
         # Build model
         if distutils.is_master():
             logging.info(f"Loading model: {self.config['model']}")
             if self.representation:
-                logging.info(f"Model used for representation")
+                logging.info("Model used for representation")
 
-        # TODO: Says it's depeciated in the OCP code but it's required for now
+        # TODO: Says it's deprecated in the OCP code but it's required for now
         bond_feat_dim = None
-        bond_feat_dim = self.config["model_attributes"].get(
-            "num_gaussians", 50
-        )
+        bond_feat_dim = self.config["model_attributes"].get("num_gaussians", 50)
 
         # Load the model class from the registry
         self.model = registry.get_model_class(self.config["model"])(
-            None,
-            bond_feat_dim,
-            self.num_targets,
-            self.representation,
+            num_atoms=None,
+            bond_feat_dim=bond_feat_dim,
+            num_targets=self.num_targets,
+            representation=self.representation,
+            regress_forces=self.regress_forces,
             **self.representation_kwargs,
             **self.config["model_attributes"],
-        ).to(self.device)
+        )
 
         if distutils.is_master():
-            logging.info(
-                f"Loaded {self.model.__class__.__name__} with "
-                f"{self.model.num_params} parameters."
-            )
+            logging.info(f"Loaded {self.model.__class__.__name__} with " f"{self.model.num_params} parameters.")
 
     def load_checkpoint(self, checkpoint_path, strict_load=True):
         if not os.path.isfile(checkpoint_path):
-            raise FileNotFoundError(
-                errno.ENOENT, "Checkpoint file not found", checkpoint_path
-            )
+            raise FileNotFoundError(errno.ENOENT, "Checkpoint file not found", checkpoint_path)
 
         logging.info(f"Loading checkpoint from: {checkpoint_path}")
         map_location = torch.device("cpu") if self.cpu else self.device
@@ -174,21 +146,15 @@ class BaseLoader:
         key_count_diff = mod_key_count - ckpt_key_count
 
         if key_count_diff > 0:
-            new_dict = {
-                key_count_diff * "module." + k: v
-                for k, v in checkpoint["state_dict"].items()
-            }
+            new_dict = {key_count_diff * "module." + k: v for k, v in checkpoint["state_dict"].items()}
         elif key_count_diff < 0:
-            new_dict = {
-                k[len("module.") * abs(key_count_diff) :]: v
-                for k, v in checkpoint["state_dict"].items()
-            }
+            new_dict = {k[len("module.") * abs(key_count_diff) :]: v for k, v in checkpoint["state_dict"].items()}
         else:
             new_dict = checkpoint["state_dict"]
 
         # NOTE: Their custom state_dict loader breaks for some unknown reason
         # related to the keys. This is due to the method ocpmodels.common.utils._report_incompat_keys
-        #load_state_dict(self.model, new_dict, strict=strict_load)
+        # load_state_dict(self.model, new_dict, strict=strict_load)
         # Instead we mimic the checks they would do here taking care of errors
         incompat_keys = self.model.load_state_dict(new_dict, strict=strict_load)
 

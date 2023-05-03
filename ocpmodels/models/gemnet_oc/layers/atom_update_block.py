@@ -44,14 +44,10 @@ class AtomUpdateBlock(torch.nn.Module):
     ):
         super().__init__()
 
-        self.dense_rbf = Dense(
-            emb_size_rbf, emb_size_edge, activation=None, bias=False
-        )
+        self.dense_rbf = Dense(emb_size_rbf, emb_size_edge, activation=None, bias=False)
         self.scale_sum = ScaleFactor()
 
-        self.layers = self.get_mlp(
-            emb_size_edge, emb_size_atom, nHidden, activation
-        )
+        self.layers = self.get_mlp(emb_size_edge, emb_size_atom, nHidden, activation)
 
     def get_mlp(self, units_in, units, nHidden, activation):
         if units_in != units:
@@ -59,10 +55,7 @@ class AtomUpdateBlock(torch.nn.Module):
             mlp = [dense1]
         else:
             mlp = []
-        res = [
-            ResidualLayer(units, nLayers=2, activation=activation)
-            for i in range(nHidden)
-        ]
+        res = [ResidualLayer(units, nLayers=2, activation=activation) for i in range(nHidden)]
         mlp += res
         return torch.nn.ModuleList(mlp)
 
@@ -78,9 +71,7 @@ class AtomUpdateBlock(torch.nn.Module):
         bases_emb = self.dense_rbf(basis_rad)  # (nEdges, emb_size_edge)
         x = m * bases_emb
 
-        x2 = scatter_det(
-            x, idx_atom, dim=0, dim_size=nAtoms, reduce="sum"
-        )  # (nAtoms, emb_size_edge)
+        x2 = scatter_det(x, idx_atom, dim=0, dim_size=nAtoms, reduce="sum")  # (nAtoms, emb_size_edge)
         x = self.scale_sum(x2, ref=m)
 
         for layer in self.layers:
@@ -134,21 +125,15 @@ class OutputBlock(AtomUpdateBlock):
 
         self.seq_energy_pre = self.layers  # inherited from parent class
         if nHidden_afteratom >= 1:
-            self.seq_energy2 = self.get_mlp(
-                emb_size_atom, emb_size_atom, nHidden_afteratom, activation
-            )
+            self.seq_energy2 = self.get_mlp(emb_size_atom, emb_size_atom, nHidden_afteratom, activation)
             self.inv_sqrt_2 = 1 / math.sqrt(2.0)
         else:
             self.seq_energy2 = None
 
         if self.direct_forces:
             self.scale_rbf_F = ScaleFactor()
-            self.seq_forces = self.get_mlp(
-                emb_size_edge, emb_size_edge, nHidden, activation
-            )
-            self.dense_rbf_F = Dense(
-                emb_size_rbf, emb_size_edge, activation=None, bias=False
-            )
+            self.seq_forces = self.get_mlp(emb_size_edge, emb_size_edge, nHidden, activation)
+            self.dense_rbf_F = Dense(emb_size_rbf, emb_size_edge, activation=None, bias=False)
 
     def forward(self, h, m, basis_rad, idx_atom):
         """
@@ -165,9 +150,7 @@ class OutputBlock(AtomUpdateBlock):
         basis_emb_E = self.dense_rbf(basis_rad)  # (nEdges, emb_size_edge)
         x = m * basis_emb_E
 
-        x_E = scatter_det(
-            x, idx_atom, dim=0, dim_size=nAtoms, reduce="sum"
-        )  # (nAtoms, emb_size_edge)
+        x_E = scatter_det(x, idx_atom, dim=0, dim_size=nAtoms, reduce="sum")  # (nAtoms, emb_size_edge)
         x_E = self.scale_sum(x_E, ref=m)
 
         for layer in self.seq_energy_pre:

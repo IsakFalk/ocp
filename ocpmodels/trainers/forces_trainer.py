@@ -111,14 +111,10 @@ class ForcesTrainer(BaseTrainer):
         logging.info(f"Loading dataset: {self.config['task']['dataset']}")
 
         if "relax_dataset" in self.config["task"]:
-            self.relax_dataset = registry.get_dataset_class("lmdb")(
-                self.config["task"]["relax_dataset"]
-            )
+            self.relax_dataset = registry.get_dataset_class("lmdb")(self.config["task"]["relax_dataset"])
             self.relax_sampler = self.get_sampler(
                 self.relax_dataset,
-                self.config["optim"].get(
-                    "eval_batch_size", self.config["optim"]["batch_size"]
-                ),
+                self.config["optim"].get("eval_batch_size", self.config["optim"]["batch_size"]),
                 shuffle=False,
             )
             self.relax_loader = self.get_dataloader(
@@ -140,9 +136,7 @@ class ForcesTrainer(BaseTrainer):
                     )
                 else:
                     self.normalizers["grad_target"] = Normalizer(
-                        tensor=self.train_loader.dataset.data.y[
-                            self.train_loader.dataset.__indices__
-                        ],
+                        tensor=self.train_loader.dataset.data.y[self.train_loader.dataset.__indices__],
                         device=self.device,
                     )
                     self.normalizers["grad_target"].mean.fill_(0)
@@ -194,61 +188,35 @@ class ForcesTrainer(BaseTrainer):
                 out = self._forward(batch_list)
 
             if self.normalizers is not None and "target" in self.normalizers:
-                out["energy"] = self.normalizers["target"].denorm(
-                    out["energy"]
-                )
-                out["forces"] = self.normalizers["grad_target"].denorm(
-                    out["forces"]
-                )
+                out["energy"] = self.normalizers["target"].denorm(out["energy"])
+                out["forces"] = self.normalizers["grad_target"].denorm(out["forces"])
             if per_image:
                 systemids = [
-                    str(i) + "_" + str(j)
-                    for i, j in zip(
-                        batch_list[0].sid.tolist(), batch_list[0].fid.tolist()
-                    )
+                    str(i) + "_" + str(j) for i, j in zip(batch_list[0].sid.tolist(), batch_list[0].fid.tolist())
                 ]
                 predictions["id"].extend(systemids)
-                batch_natoms = torch.cat(
-                    [batch.natoms for batch in batch_list]
-                )
+                batch_natoms = torch.cat([batch.natoms for batch in batch_list])
                 batch_fixed = torch.cat([batch.fixed for batch in batch_list])
                 # total energy target requires predictions to be saved in float32
                 # default is float16
                 if (
-                    self.config["task"].get("prediction_dtype", "float16")
-                    == "float32"
+                    self.config["task"].get("prediction_dtype", "float16") == "float32"
                     or self.config["task"]["dataset"] == "oc22_lmdb"
                 ):
-                    predictions["energy"].extend(
-                        out["energy"].cpu().detach().to(torch.float32).numpy()
-                    )
+                    predictions["energy"].extend(out["energy"].cpu().detach().to(torch.float32).numpy())
                     forces = out["forces"].cpu().detach().to(torch.float32)
                 else:
-                    predictions["energy"].extend(
-                        out["energy"].cpu().detach().to(torch.float16).numpy()
-                    )
+                    predictions["energy"].extend(out["energy"].cpu().detach().to(torch.float16).numpy())
                     forces = out["forces"].cpu().detach().to(torch.float16)
                 per_image_forces = torch.split(forces, batch_natoms.tolist())
-                per_image_forces = [
-                    force.numpy() for force in per_image_forces
-                ]
+                per_image_forces = [force.numpy() for force in per_image_forces]
                 # evalAI only requires forces on free atoms
                 if results_file is not None:
-                    _per_image_fixed = torch.split(
-                        batch_fixed, batch_natoms.tolist()
-                    )
+                    _per_image_fixed = torch.split(batch_fixed, batch_natoms.tolist())
                     _per_image_free_forces = [
-                        force[(fixed == 0).tolist()]
-                        for force, fixed in zip(
-                            per_image_forces, _per_image_fixed
-                        )
+                        force[(fixed == 0).tolist()] for force, fixed in zip(per_image_forces, _per_image_fixed)
                     ]
-                    _chunk_idx = np.array(
-                        [
-                            free_force.shape[0]
-                            for free_force in _per_image_free_forces
-                        ]
-                    )
+                    _chunk_idx = np.array([free_force.shape[0] for free_force in _per_image_free_forces])
                     per_image_forces = _per_image_free_forces
                     predictions["chunk_idx"].extend(_chunk_idx)
                 predictions["forces"].extend(per_image_forces)
@@ -263,9 +231,7 @@ class ForcesTrainer(BaseTrainer):
         predictions["chunk_idx"] = np.array(predictions["chunk_idx"])
         predictions["energy"] = np.array(predictions["energy"])
         predictions["id"] = np.array(predictions["id"])
-        self.save_results(
-            predictions, results_file, keys=["energy", "forces", "chunk_idx"]
-        )
+        self.save_results(predictions, results_file, keys=["energy", "forces", "chunk_idx"])
 
         if self.ema:
             self.ema.restore()
@@ -278,12 +244,8 @@ class ForcesTrainer(BaseTrainer):
         val_metrics,
         disable_eval_tqdm=True,
     ):
-        if (
-            "mae" in primary_metric
-            and val_metrics[primary_metric]["metric"] < self.best_val_metric
-        ) or (
-            "mae" not in primary_metric
-            and val_metrics[primary_metric]["metric"] > self.best_val_metric
+        if ("mae" in primary_metric and val_metrics[primary_metric]["metric"] < self.best_val_metric) or (
+            "mae" not in primary_metric and val_metrics[primary_metric]["metric"] > self.best_val_metric
         ):
             self.best_val_metric = val_metrics[primary_metric]["metric"]
             self.save(
@@ -301,19 +263,10 @@ class ForcesTrainer(BaseTrainer):
     def train(self, disable_eval_tqdm=False):
         ensure_fitted(self._unwrapped_model, warn=True)
 
-        eval_every = self.config["optim"].get(
-            "eval_every", len(self.train_loader)
-        )
-        checkpoint_every = self.config["optim"].get(
-            "checkpoint_every", eval_every
-        )
-        primary_metric = self.config["task"].get(
-            "primary_metric", self.evaluator.task_primary_metric[self.name]
-        )
-        if (
-            not hasattr(self, "primary_metric")
-            or self.primary_metric != primary_metric
-        ):
+        eval_every = self.config["optim"].get("eval_every", len(self.train_loader))
+        checkpoint_every = self.config["optim"].get("checkpoint_every", eval_every)
+        primary_metric = self.config["task"].get("primary_metric", self.evaluator.task_primary_metric[self.name])
+        if not hasattr(self, "primary_metric") or self.primary_metric != primary_metric:
             self.best_val_metric = 1e9 if "mae" in primary_metric else -1.0
         else:
             primary_metric = self.primary_metric
@@ -323,9 +276,7 @@ class ForcesTrainer(BaseTrainer):
         # to prevent inconsistencies due to different batch size in checkpoint.
         start_epoch = self.step // len(self.train_loader)
 
-        for epoch_int in range(
-            start_epoch, self.config["optim"]["max_epochs"]
-        ):
+        for epoch_int in range(start_epoch, self.config["optim"]["max_epochs"]):
             self.train_sampler.set_epoch(epoch_int)
             skip_steps = self.step % len(self.train_loader)
             train_loader_iter = iter(self.train_loader)
@@ -353,9 +304,7 @@ class ForcesTrainer(BaseTrainer):
                     self.evaluator,
                     self.metrics,
                 )
-                self.metrics = self.evaluator.update(
-                    "loss", loss.item() / scale, self.metrics
-                )
+                self.metrics = self.evaluator.update("loss", loss.item() / scale, self.metrics)
 
                 # Log metrics.
                 log_dict = {k: self.metrics[k]["metric"] for k in self.metrics}
@@ -366,14 +315,8 @@ class ForcesTrainer(BaseTrainer):
                         "step": self.step,
                     }
                 )
-                if (
-                    self.step % self.config["cmd"]["print_every"] == 0
-                    and distutils.is_master()
-                    and not self.is_hpo
-                ):
-                    log_str = [
-                        "{}: {:.2e}".format(k, v) for k, v in log_dict.items()
-                    ]
+                if self.step % self.config["cmd"]["print_every"] == 0 and distutils.is_master() and not self.is_hpo:
+                    log_str = ["{}: {:.2e}".format(k, v) for k, v in log_dict.items()]
                     logging.info(", ".join(log_str))
                     self.metrics = {}
 
@@ -384,13 +327,8 @@ class ForcesTrainer(BaseTrainer):
                         split="train",
                     )
 
-                if (
-                    checkpoint_every != -1
-                    and self.step % checkpoint_every == 0
-                ):
-                    self.save(
-                        checkpoint_file="checkpoint.pt", training_state=True
-                    )
+                if checkpoint_every != -1 and self.step % checkpoint_every == 0:
+                    self.save(checkpoint_file="checkpoint.pt", training_state=True)
 
                 # Evaluate on val set every `eval_every` iterations.
                 if self.step % eval_every == 0:
@@ -414,9 +352,7 @@ class ForcesTrainer(BaseTrainer):
 
                     if self.config["task"].get("eval_relaxations", False):
                         if "relax_dataset" not in self.config["task"]:
-                            logging.warning(
-                                "Cannot evaluate relaxations, relax_dataset not specified"
-                            )
+                            logging.warning("Cannot evaluate relaxations, relax_dataset not specified")
                         else:
                             self.run_relaxations()
 
@@ -462,38 +398,25 @@ class ForcesTrainer(BaseTrainer):
         loss = []
 
         # Energy loss.
-        energy_target = torch.cat(
-            [batch.y.to(self.device) for batch in batch_list], dim=0
-        )
+        energy_target = torch.cat([batch.y.to(self.device) for batch in batch_list], dim=0)
         if self.normalizer.get("normalize_labels", False):
             energy_target = self.normalizers["target"].norm(energy_target)
         energy_mult = self.config["optim"].get("energy_coefficient", 1)
-        loss.append(
-            energy_mult * self.loss_fn["energy"](out["energy"], energy_target)
-        )
+        loss.append(energy_mult * self.loss_fn["energy"](out["energy"], energy_target))
 
         # Force loss.
         if self.config["model_attributes"].get("regress_forces", True):
-            force_target = torch.cat(
-                [batch.force.to(self.device) for batch in batch_list], dim=0
-            )
+            force_target = torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0)
             if self.normalizer.get("normalize_labels", False):
-                force_target = self.normalizers["grad_target"].norm(
-                    force_target
-                )
+                force_target = self.normalizers["grad_target"].norm(force_target)
 
-            tag_specific_weights = self.config["task"].get(
-                "tag_specific_weights", []
-            )
+            tag_specific_weights = self.config["task"].get("tag_specific_weights", [])
             if tag_specific_weights != []:
                 # handle tag specific weights as introduced in forcenet
                 assert len(tag_specific_weights) == 3
 
                 batch_tags = torch.cat(
-                    [
-                        batch.tags.float().to(self.device)
-                        for batch in batch_list
-                    ],
+                    [batch.tags.float().to(self.device) for batch in batch_list],
                     dim=0,
                 )
                 weight = torch.zeros_like(batch_tags)
@@ -503,33 +426,19 @@ class ForcesTrainer(BaseTrainer):
 
                 if self.config["optim"].get("loss_force", "l2mae") == "l2mae":
                     # zero out nans, if any
-                    found_nans_or_infs = not torch.all(
-                        out["forces"].isfinite()
-                    )
+                    found_nans_or_infs = not torch.all(out["forces"].isfinite())
                     if found_nans_or_infs is True:
                         logging.warning("Found nans while computing loss")
-                        out["forces"] = torch.nan_to_num(
-                            out["forces"], nan=0.0
-                        )
+                        out["forces"] = torch.nan_to_num(out["forces"], nan=0.0)
 
-                    dists = torch.norm(
-                        out["forces"] - force_target, p=2, dim=-1
-                    )
+                    dists = torch.norm(out["forces"] - force_target, p=2, dim=-1)
                     weighted_dists_sum = (dists * weight).sum()
 
                     num_samples = out["forces"].shape[0]
-                    num_samples = distutils.all_reduce(
-                        num_samples, device=self.device
-                    )
-                    weighted_dists_sum = (
-                        weighted_dists_sum
-                        * distutils.get_world_size()
-                        / num_samples
-                    )
+                    num_samples = distutils.all_reduce(num_samples, device=self.device)
+                    weighted_dists_sum = weighted_dists_sum * distutils.get_world_size() / num_samples
 
-                    force_mult = self.config["optim"].get(
-                        "force_coefficient", 30
-                    )
+                    force_mult = self.config["optim"].get("force_coefficient", 30)
                     loss.append(force_mult * weighted_dists_sum)
                 else:
                     raise NotImplementedError
@@ -537,24 +446,11 @@ class ForcesTrainer(BaseTrainer):
                 # Force coefficient = 30 has been working well for us.
                 force_mult = self.config["optim"].get("force_coefficient", 30)
                 if self.config["task"].get("train_on_free_atoms", False):
-                    fixed = torch.cat(
-                        [batch.fixed.to(self.device) for batch in batch_list]
-                    )
+                    fixed = torch.cat([batch.fixed.to(self.device) for batch in batch_list])
                     mask = fixed == 0
-                    if (
-                        self.config["optim"]
-                        .get("loss_force", "mae")
-                        .startswith("atomwise")
-                    ):
-                        force_mult = self.config["optim"].get(
-                            "force_coefficient", 1
-                        )
-                        natoms = torch.cat(
-                            [
-                                batch.natoms.to(self.device)
-                                for batch in batch_list
-                            ]
-                        )
+                    if self.config["optim"].get("loss_force", "mae").startswith("atomwise"):
+                        force_mult = self.config["optim"].get("force_coefficient", 1)
+                        natoms = torch.cat([batch.natoms.to(self.device) for batch in batch_list])
                         natoms = torch.repeat_interleave(natoms, natoms)
                         force_loss = force_mult * self.loss_fn["force"](
                             out["forces"][mask],
@@ -564,17 +460,9 @@ class ForcesTrainer(BaseTrainer):
                         )
                         loss.append(force_loss)
                     else:
-                        loss.append(
-                            force_mult
-                            * self.loss_fn["force"](
-                                out["forces"][mask], force_target[mask]
-                            )
-                        )
+                        loss.append(force_mult * self.loss_fn["force"](out["forces"][mask], force_target[mask]))
                 else:
-                    loss.append(
-                        force_mult
-                        * self.loss_fn["force"](out["forces"], force_target)
-                    )
+                    loss.append(force_mult * self.loss_fn["force"](out["forces"], force_target))
 
         # Sanity check to make sure the compute graph is correct.
         for lc in loss:
@@ -584,26 +472,18 @@ class ForcesTrainer(BaseTrainer):
         return loss
 
     def _compute_metrics(self, out, batch_list, evaluator, metrics={}):
-        natoms = torch.cat(
-            [batch.natoms.to(self.device) for batch in batch_list], dim=0
-        )
+        natoms = torch.cat([batch.natoms.to(self.device) for batch in batch_list], dim=0)
 
         target = {
-            "energy": torch.cat(
-                [batch.y.to(self.device) for batch in batch_list], dim=0
-            ),
-            "forces": torch.cat(
-                [batch.force.to(self.device) for batch in batch_list], dim=0
-            ),
+            "energy": torch.cat([batch.y.to(self.device) for batch in batch_list], dim=0),
+            "forces": torch.cat([batch.force.to(self.device) for batch in batch_list], dim=0),
             "natoms": natoms,
         }
 
         out["natoms"] = natoms
 
         if self.config["task"].get("eval_on_free_atoms", True):
-            fixed = torch.cat(
-                [batch.fixed.to(self.device) for batch in batch_list]
-            )
+            fixed = torch.cat([batch.fixed.to(self.device) for batch in batch_list])
             mask = fixed == 0
             out["forces"] = out["forces"][mask]
             target["forces"] = target["forces"][mask]
@@ -611,18 +491,14 @@ class ForcesTrainer(BaseTrainer):
             s_idx = 0
             natoms_free = []
             for natoms in target["natoms"]:
-                natoms_free.append(
-                    torch.sum(mask[s_idx : s_idx + natoms]).item()
-                )
+                natoms_free.append(torch.sum(mask[s_idx : s_idx + natoms]).item())
                 s_idx += natoms
             target["natoms"] = torch.LongTensor(natoms_free).to(self.device)
             out["natoms"] = torch.LongTensor(natoms_free).to(self.device)
 
         if self.normalizer.get("normalize_labels", False):
             out["energy"] = self.normalizers["target"].denorm(out["energy"])
-            out["forces"] = self.normalizers["grad_target"].denorm(
-                out["forces"]
-            )
+            out["forces"] = self.normalizers["grad_target"].denorm(out["forces"])
 
         metrics = evaluator.eval(out, target, prev_metrics=metrics)
         return metrics
@@ -649,12 +525,8 @@ class ForcesTrainer(BaseTrainer):
 
         # Need both `pos_relaxed` and `y_relaxed` to compute val IS2R* metrics.
         # Else just generate predictions.
-        if (
-            hasattr(self.relax_dataset[0], "pos_relaxed")
-            and self.relax_dataset[0].pos_relaxed is not None
-        ) and (
-            hasattr(self.relax_dataset[0], "y_relaxed")
-            and self.relax_dataset[0].y_relaxed is not None
+        if (hasattr(self.relax_dataset[0], "pos_relaxed") and self.relax_dataset[0].pos_relaxed is not None) and (
+            hasattr(self.relax_dataset[0], "y_relaxed") and self.relax_dataset[0].y_relaxed is not None
         ):
             split = "val"
         else:
@@ -663,16 +535,12 @@ class ForcesTrainer(BaseTrainer):
         ids = []
         relaxed_positions = []
         chunk_idx = []
-        for i, batch in tqdm(
-            enumerate(self.relax_loader), total=len(self.relax_loader)
-        ):
+        for i, batch in tqdm(enumerate(self.relax_loader), total=len(self.relax_loader)):
             if i >= self.config["task"].get("num_relaxation_batches", 1e9):
                 break
 
             # If all traj files already exist, then skip this batch
-            if check_traj_files(
-                batch, self.config["task"]["relax_opt"].get("traj_dir", None)
-            ):
+            if check_traj_files(batch, self.config["task"]["relax_opt"].get("traj_dir", None)):
                 logging.info(f"Skipping batch: {batch[0].sid.tolist()}")
                 continue
 
@@ -702,9 +570,7 @@ class ForcesTrainer(BaseTrainer):
                 s_idx = 0
                 natoms_free = []
                 for natoms in relaxed_batch.natoms:
-                    natoms_free.append(
-                        torch.sum(mask[s_idx : s_idx + natoms]).item()
-                    )
+                    natoms_free.append(torch.sum(mask[s_idx : s_idx + natoms]).item())
                     s_idx += natoms
 
                 target = {
@@ -736,9 +602,7 @@ class ForcesTrainer(BaseTrainer):
 
         if self.config["task"].get("write_pos", False):
             rank = distutils.get_rank()
-            pos_filename = os.path.join(
-                self.config["cmd"]["results_dir"], f"relaxed_pos_{rank}.npz"
-            )
+            pos_filename = os.path.join(self.config["cmd"]["results_dir"], f"relaxed_pos_{rank}.npz")
             np.savez_compressed(
                 pos_filename,
                 ids=ids,
@@ -762,21 +626,15 @@ class ForcesTrainer(BaseTrainer):
                     rank_results = np.load(rank_path, allow_pickle=True)
                     gather_results["ids"].extend(rank_results["ids"])
                     gather_results["pos"].extend(rank_results["pos"])
-                    gather_results["chunk_idx"].extend(
-                        rank_results["chunk_idx"]
-                    )
+                    gather_results["chunk_idx"].extend(rank_results["chunk_idx"])
                     os.remove(rank_path)
 
                 # Because of how distributed sampler works, some system ids
                 # might be repeated to make no. of samples even across GPUs.
                 _, idx = np.unique(gather_results["ids"], return_index=True)
                 gather_results["ids"] = np.array(gather_results["ids"])[idx]
-                gather_results["pos"] = np.concatenate(
-                    np.array(gather_results["pos"])[idx]
-                )
-                gather_results["chunk_idx"] = np.cumsum(
-                    np.array(gather_results["chunk_idx"])[idx]
-                )[
+                gather_results["pos"] = np.concatenate(np.array(gather_results["pos"])[idx])
+                gather_results["chunk_idx"] = np.cumsum(np.array(gather_results["chunk_idx"])[idx])[
                     :-1
                 ]  # np.split does not need last idx, assumes n-1:end
 
@@ -800,16 +658,11 @@ class ForcesTrainer(BaseTrainer):
                             device=self.device,
                         ),
                     }
-                    aggregated_metrics[k]["metric"] = (
-                        aggregated_metrics[k]["total"]
-                        / aggregated_metrics[k]["numel"]
-                    )
+                    aggregated_metrics[k]["metric"] = aggregated_metrics[k]["total"] / aggregated_metrics[k]["numel"]
                 metrics = aggregated_metrics
 
                 # Make plots.
-                log_dict = {
-                    f"{task}_{k}": metrics[k]["metric"] for k in metrics
-                }
+                log_dict = {f"{task}_{k}": metrics[k]["metric"] for k in metrics}
                 if self.logger is not None:
                     self.logger.log(
                         log_dict,
