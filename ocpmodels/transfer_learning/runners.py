@@ -6,6 +6,7 @@ from ocpmodels.transfer_learning.common.utils import torch_tensor_to_npy
 from ocpmodels.transfer_learning.trainers.gap import GAPTrainer
 from ocpmodels.transfer_learning.trainers.gnn import GNNTrainer
 from ocpmodels.transfer_learning.trainers.mekrr import MEKRRTrainer
+from ocpmodels.transfer_learning.trainers.mekrr_gnn import MEKRRGNNTrainer
 
 
 class BaseRunner(ABC):
@@ -94,6 +95,31 @@ class GAPRunner(BaseRunner):
 class GNNRunner(BaseRunner):
     def setup(self):
         self.trainer = GNNTrainer(
+            self.config["task"],
+            self.config["model"],
+            self.config["dataset"],
+            self.config["optim"],
+            self.config["logger"],
+            print_every=self.run_args.print_every,
+            seed=self.run_args.seed,
+            cpu=self.run_args.cpu,
+            name=self.config["logger"]["name"],
+            run_dir=self.run_args.run_dir,
+            is_debug=self.run_args.debug,
+            hide_eval_progressbar=self.config.get("hide_eval_progressbar", False),
+        )
+        # TODO: add checkpoint resuming
+
+    def run(self):
+        if self.config["task"].get("train", True):
+            self.trainer.train(
+                disable_eval_tqdm=self.config.get("hide_eval_progressbar", False),
+            )
+
+
+class MEKRRGNNRunner(BaseRunner):
+    def setup(self):
+        self.trainer = MEKRRGNNTrainer(
             self.config["task"],
             self.config["model"],
             self.config["dataset"],

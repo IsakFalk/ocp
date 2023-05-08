@@ -63,7 +63,8 @@ class GaussianKernel(Kernel):
         self.sigma = sigma
 
     def __call__(self, x: Tensor, y: Tensor) -> Tensor:
-        return torch.exp(-torch.cdist(x, y, p=2) ** 2 / (2 * self.sigma**2))
+        D2 = torch.cdist(x, y, p=2) ** 2
+        return torch.exp(-D2 / (2 * self.sigma**2))
 
 
 # Kernel Mean Embeddings

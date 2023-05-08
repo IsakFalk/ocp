@@ -17,6 +17,7 @@ from ocpmodels.transfer_learning.runners import (
     FTGNNRunner,
     GAPRunner,
     GNNRunner,
+    MEKRRGNNRunner,
     MEKRRRunner,
 )
 
@@ -33,6 +34,8 @@ if __name__ == "__main__":
         runner = FTGNNRunner(config, args)
     elif config["runner"] == "MEKRR":  # Transfer learning
         runner = MEKRRRunner(config, args)
+    elif config["runner"] == "MEKRRGNN":  # Transfer learning
+        runner = MEKRRGNNRunner(config, args)
     elif config["runner"] == "GAP":  # Supervised learning
         runner = GAPRunner(config, args)
     elif config["runner"] == "GDML":  # Supervised learning
