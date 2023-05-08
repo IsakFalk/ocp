@@ -57,8 +57,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from functorch.compile import compiled_function, draw_graph
-
-# from torch.autograd.functional import jacobian, hessian, vjp, jvp, hvp
+from torch.autograd.functional import hessian, hvp, jacobian, jvp, vjp
 
 # def f(x, data, kernel, model):
 #     data.pos = x
