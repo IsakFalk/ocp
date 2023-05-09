@@ -26,6 +26,8 @@ from ocpmodels.transfer_learning.runners import (
 
 if __name__ == "__main__":
     setup_logging()
+    # Silence logging warnings
+    logging.getLogger().setLevel(logging.INFO)
 
     parser = flags.get_parser()
     args, override_args = parser.parse_known_args()
