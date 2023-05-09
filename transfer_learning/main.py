@@ -7,7 +7,10 @@ LICENSE file in the root directory of this source tree.
 import logging
 import warnings
 
+# NOTE: Not good practice, disable warnings for now.
+# Could be useful to see warnings in the future.
 warnings.filterwarnings("ignore", module="torch_geometric")
+warnings.filterwarnings("ignore")
 
 from ocpmodels.common.utils import setup_logging
 from ocpmodels.transfer_learning.common.flags import flags
