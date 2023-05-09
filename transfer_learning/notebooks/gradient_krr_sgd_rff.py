@@ -44,7 +44,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 representation_layer = 1
 base_loader = BaseLoader(
     checkpoint["config"],
-    representation=False,
+    representation=True,
     representation_kwargs={
         "representation_layer": representation_layer,
     },
@@ -53,6 +53,60 @@ base_loader.load_checkpoint(CHECKPOINT_PATH, strict_load=False)
 model = base_loader.model
 model.to(device)
 model.mekrr_forces = False
+
+
+### First create random feature kernel
+class RFFFeatureMap(torch.nn.Module):
+    def __init__(self, D, d, sigma):
+        super(RFFFeatureMap, self).__init__()
+        self.D = D
+        self.d = d
+        self.sigma = sigma
+        self.w, self.b = self._sample_w_and_b()
+
+    def _sample_w_and_b(self):
+        w = torch.randn(self.D, self.d)
+        b = torch.rand(self.D, 1) * np.pi * 2
+        return w, b
+
+    def forward(self, x):
+        q = torch.matmul(x, self.w.T) / self.sigma + self.b.T
+        z = math.sqrt(2 / self.D) * torch.cos(q)
+        return z
+
+
+with torch.no_grad():
+    phi_train = model(data_batch)[0].cpu()
+    d = phi_train.shape[-1]
+    phi_ = torch.nn.functional.normalize(phi_.reshape(-1, phi_.shape[-1]), dim=-1)
+    sigma = median_heuristic(phi_.reshape(-1, phi_.shape[-1]), phi_.reshape(-1, phi_.shape[-1]))
+
+fm = RFFFeatureMap(10000, 1024, sigma=sigma).to(device)
+z = fm(phi_).reshape(num_frames, num_atoms, -1).mean(1)
+
+k_rff = z @ z.T
+k_rff = k_rff.cpu().detach()
+
+gk = GaussianKernel()
+gk.sigma = sigma
+gklme = LinearMeanEmbeddingKernel(gk)
+k = gklme(phi_.reshape(num_frames, num_atoms, -1), phi_.reshape(num_frames, num_atoms, -1)).cpu().detach()
+
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots()
+ax.imshow((k - k_rff) / k)
+fig.savefig("k_diff.png")
+
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots()
+ax.imshow(k_rff.cpu())
+fig.savefig("k_rff.png")
+
+fig, ax = plt.subplots()
+ax.imshow(k.cpu())
+fig.savefig("k.png")
 
 
 ### First create random feature kernel
@@ -73,6 +127,13 @@ class RFFFeatureMap(torch.nn.Module):
         zsin = torch.sin(q / self.sigma)
         z = math.sqrt(2 / self.D) * torch.cat([zcos, zsin], dim=-1)
         return z
+
+
+fm = RFFFeatureMap(10000, 1024, sigma=sigma).to(device)
+z = fm(phi_).reshape(num_frames, num_atoms, -1).mean(1)
+
+k_rff = z @ z.T
+k_rff = k_rff.cpu().detach()
 
 
 class MERFFGNN(torch.nn.Module):
@@ -137,6 +198,7 @@ for batch in loader:
     print(batch)
     break
 
+
 D = 1000
 merffgnn = MERFFGNN(D, d, sigma, model, regress_forces=True)
 merffgnn.to(device)
@@ -145,6 +207,7 @@ energy, forces = merffgnn(batch)
 forces.shape
 
 energy, forces = model(batch)
+energy.shape
 
 merffgnn.to(device)
 for p in merffgnn.parameters():

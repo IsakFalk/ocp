@@ -28,24 +28,42 @@ from ocpmodels.transfer_learning.models.distribution_regression import (
 from ..loaders import BaseLoader
 from .base import BaseTrainer
 
-
 ### First create random feature kernel
+# class RFFFeatureMap(torch.nn.Module):
+#     def __init__(self, D, d, sigma):
+#         super(RFFFeatureMap, self).__init__()
+#         self.D = D
+#         self.d = d
+#         self.sigma = sigma
+#         self.w = self._sample_w()
+
+#     def _sample_w(self):
+#         return torch.randn(self.D, self.d)
+
+#     def forward(self, x):
+#         q = torch.matmul(x, self.w.T)
+#         zcos = torch.cos(q / self.sigma)
+#         zsin = torch.sin(q / self.sigma)
+#         z = math.sqrt(2 / self.D) * torch.cat([zcos, zsin], dim=-1)
+#         return z
+
+
 class RFFFeatureMap(torch.nn.Module):
     def __init__(self, D, d, sigma):
         super(RFFFeatureMap, self).__init__()
         self.D = D
         self.d = d
         self.sigma = sigma
-        self.w = self._sample_w()
+        self.w, self.b = self._sample_w_and_b()
 
-    def _sample_w(self):
-        return torch.randn(self.D, self.d)
+    def _sample_w_and_b(self):
+        w = torch.randn(self.D, self.d)
+        b = torch.rand(self.D, 1) * np.pi * 2
+        return w, b
 
     def forward(self, x):
-        q = torch.matmul(x, self.w.T)
-        zcos = torch.cos(q / self.sigma)
-        zsin = torch.sin(q / self.sigma)
-        z = math.sqrt(2 / self.D) * torch.cat([zcos, zsin], dim=-1)
+        q = torch.matmul(x, self.w.T) / self.sigma + self.b.T
+        z = math.sqrt(2 / self.D) * torch.cos(q)
         return z
 
 
@@ -57,8 +75,8 @@ class MERFFGNN(torch.nn.Module):
         self.sigma = sigma
         self.gnn = model
         self.feature_map = RFFFeatureMap(D, d, sigma)
-        self.w = nn.Linear(2 * D, 1, bias=False)  # 2 * D because of concatenation of sin and cos]
         self.gnn.regress_forces = False
+        self.w = nn.Linear(D, 1, bias=False)
         self.regress_forces = regress_forces
 
     def forward(self, data):
@@ -125,7 +143,6 @@ class MEKRRGNNTrainer(BaseTrainer):
         self.hide_eval_progressbar = hide_eval_progressbar
         self.epoch = 0
         self.step = 0
-        pprint(self.model_config)
         if torch.cuda.is_available() and not self.cpu:
             self.device = torch.device("cuda")
         else:
@@ -232,38 +249,38 @@ class MEKRRGNNTrainer(BaseTrainer):
         optimizer = self.config["optim"].get("optimizer", "AdamW")
         optimizer = getattr(optim, optimizer)
 
-        if self.config["optim"].get("weight_decay", 0) > 0:
-            # Do not regularize bias etc.
-            params_decay = []
-            params_no_decay = []
-            for name, param in self.model.named_parameters():
-                if param.requires_grad:
-                    if "embedding" in name:
-                        params_no_decay += [param]
-                    elif "frequencies" in name:
-                        params_no_decay += [param]
-                    elif "bias" in name:
-                        params_no_decay += [param]
-                    else:
-                        params_decay += [param]
+        # if self.config["optim"].get("weight_decay", 0) > 0:
+        #     # Do not regularize bias etc.
+        #     params_decay = []
+        #     params_no_decay = []
+        #     for name, param in self.model.named_parameters():
+        #         if param.requires_grad:
+        #             if "embedding" in name:
+        #                 params_no_decay += [param]
+        #             elif "frequencies" in name:
+        #                 params_no_decay += [param]
+        #             elif "bias" in name:
+        #                 params_no_decay += [param]
+        #             else:
+        #                 params_decay += [param]
 
-            self.optimizer = optimizer(
-                [
-                    {"params": params_no_decay, "weight_decay": 0},
-                    {
-                        "params": params_decay,
-                        "weight_decay": self.config["optim"]["weight_decay"],
-                    },
-                ],
-                lr=self.config["optim"]["lr_initial"],
-                **self.config["optim"].get("optimizer_params", {}),
-            )
-        else:
-            self.optimizer = optimizer(
-                params=self.model.parameters(),
-                lr=self.config["optim"]["lr_initial"],
-                **self.config["optim"].get("optimizer_params", {}),
-            )
+        #     self.optimizer = optimizer(
+        #         [
+        #             {"params": params_no_decay, "weight_decay": 0},
+        #             {
+        #                 "params": params_decay,
+        #                 "weight_decay": self.config["optim"]["weight_decay"],
+        #             },
+        #         ],
+        #         lr=self.config["optim"]["lr_initial"],
+        #         **self.config["optim"].get("optimizer_params", {}),
+        #     )
+        # else:
+        self.optimizer = optimizer(
+            params=[p for p in self.model.parameters() if p.requires_grad],
+            lr=self.config["optim"]["lr_initial"],
+            **self.config["optim"].get("optimizer_params", {}),
+        )
 
     def load_extras(self):
         self.scheduler = LRScheduler(self.optimizer, self.config["optim"])  # for now no decay
@@ -303,7 +320,7 @@ class MEKRRGNNTrainer(BaseTrainer):
                 out = self._forward(batch)
                 loss, losses = self._compute_loss(out, batch)
                 self._backward(
-                    loss + self.lmbda * (self.model.w.weight**2).sum()
+                    loss  # + self.lmbda * (self.model.w.weight**2).sum()
                 )  # NB: we do KRR with lmbda ||w||^2 regularizer
                 self.loss_metrics["energy_loss"].append(aggregate_metric(losses["energy"].item()))
                 self.loss_metrics["forces_loss"].append(aggregate_metric(losses["forces"].item()))
