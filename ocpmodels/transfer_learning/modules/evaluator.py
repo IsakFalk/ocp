@@ -51,6 +51,9 @@ class Evaluator:
             assert attr in target
             assert prediction[attr].shape == target[attr].shape
 
+        # Fix some bugs
+        prediction = {k: v.detach().cpu() for k, v in prediction.items()}
+        target = {k: v.detach().cpu() for k, v in target.items()}
         metrics = {}
         for fn in self.task_metrics:
             res = eval(fn)(prediction, target).item()

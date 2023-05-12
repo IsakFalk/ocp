@@ -24,11 +24,17 @@ private_dirs=(
 for private_dir in "${private_dirs[@]}"; do
   for method_path in "${method_paths[@]}"; do
 
-    # Run script for energies
-    python transfer_learning/main.py \
-      --config-yml transfer_learning/configs/s2ef/private/"$private_dir"/energy/"$method_path" \
-      --run-dir runs
-
+    if [["$method_path" == *"mekrr"*]]; then
+        # Run script for energies
+        python transfer_learning/main.py \
+            --config-yml transfer_learning/configs/s2ef/private/"$private_dir"/energy/"$method_path" \
+            --run-dir runs\
+            --cpu
+    else
+        python transfer_learning/main.py \
+            --config-yml transfer_learning/configs/s2ef/private/"$private_dir"/energy/"$method_path" \
+            --run-dir runs
+    fi
     # # Run script for forces
     # python transfer_learning/main.py \
     #   --config-yml transfer_learning/configs/s2ef/private/"$private_dir"/forces/"$method_path" \
@@ -39,10 +45,18 @@ done
 
 ### Now formate dataset
 for method_path in "${method_paths[@]}"; do
-     # Run script for energies
-    python transfer_learning/main.py \
-        --config-yml transfer_learning/configs/s2ef/formate/energy/"$method_path" \
-        --run-dir runs
+
+    if [["$method_path" == *"mekrr"*]]; then
+        # Run script for energies
+        python transfer_learning/main.py \
+            --config-yml transfer_learning/configs/s2ef/formate/energy/"$method_path" \
+            --run-dir runs\
+            --cpu
+    else
+        python transfer_learning/main.py \
+            --config-yml transfer_learning/configs/s2ef/formate/energy/energy/"$method_path" \
+            --run-dir runs
+    fi
 
     # # Run script for forces
     # python transfer_learning/main.py \
