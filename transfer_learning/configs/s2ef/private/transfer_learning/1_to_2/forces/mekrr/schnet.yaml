@@ -28,7 +28,7 @@ kernel:
     linear
   # k1_params
   regressor_params:
-    lmbda: 1.0e-7
+    lmbda: 1.0e-8
   representation_params:
     representation_layer: 2
   model_checkpoint_path: checkpoints/s2ef_efwt/all/schnet/schnet_all_large.pt # Path to load model checkpoint
@@ -39,7 +39,7 @@ optim:
 
 task:
   train: True
-  validate: ["train", "val", "test"]
-  predict: ["train", "val", "test"]
+  validate: ["val", "test"]
+  predict: ["val", "test"]
 
 runner: "MEKRR"

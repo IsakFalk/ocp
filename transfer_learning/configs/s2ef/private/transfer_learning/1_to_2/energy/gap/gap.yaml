@@ -9,10 +9,10 @@ dataset:
     normalize_labels: True
   val:
     # path to extxyz files
-    src: data/private/1_abinitio-md_Fe45N2_random-true_val.extxyz
+    src: data/private/2_abinitio-metad_Fe45N2_random-true_val.extxyz
   test:
     # path to extxyz files
-    src: data/private/1_abinitio-md_Fe45N2_random-true_test.extxyz
+    src: data/private/2_abinitio-metad_Fe45N2_random-true_test.extxyz
 
 model:
   gap_params:

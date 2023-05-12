@@ -1,7 +1,7 @@
 dataset:
   train:
     # path to extxyz files
-    src: data/private/1_abinitio-md_Fe45N2_random-true_train.extxyz
+    src: data/private/3_active-metad_Fe45N2_random-true_train.extxyz
     # If we want to normalize each target value_ i.e. subtract the mean and
     # divide by standard deviation_ then those 'target_mean' and 'target_std'
     # statistics for energies and 'grad_target_mean' and 'grad_target_std'
@@ -9,20 +9,27 @@ dataset:
     normalize_labels: True
   val:
     # path to extxyz files
-    src: data/private/1_abinitio-md_Fe45N2_random-true_val.extxyz
+    src: data/private/4_active-metad_Fe72N2_random-true_val.extxyz
   test:
     # path to extxyz files
-    src: data/private/1_abinitio-md_Fe45N2_random-true_test.extxyz
+    src: data/private/4_active-metad_Fe72N2_random-true_test.extxyz
 
 # Values for logger, such as tagging and name of run
 logger:
   tags: []
-  name: "schnet-ft"
+  name: "schnet"
 
 model:
-  name: "schnet-ft"
-  model_checkpoint_path: checkpoints/s2ef_efwt/all/schnet/schnet_all_large.pt
-  freeze_layers_up_to: 3
+  name: "schnet"
+  # Model attributes go here, e.g. no. of layers, no. of hidden channels,
+  # embedding functions, cutoff radius, no. of neighbors, etc.
+  # This list of params will look different depending on the model.
+  hidden_channels: 256
+  num_filters: 64
+  num_interactions: 3
+  num_gaussians: 200
+  # 'otf_graph' specifies whether graph edges should be computed on the fly
+  # or they already exist in the preprocessed LMDBs. If unsure, set it to True.
   otf_graph: True                                                               # True or False
 
 optim:
@@ -51,7 +58,7 @@ optim:
   #energy_coefficient: 1
   #energy_loss_coefficient: 1.0
   # Coefficient to use for the force loss.
-  force_loss_coefficient: 0.99
+  force_loss_coefficient: 0.00
   # Optimizer to use from torch.optim.
   # Default is https://pytorch.org/docs/stable/generated/torch.optim.AdamW.html.
   optimizer: AdamW
@@ -83,17 +90,17 @@ optim:
   #factor: 0.8
   #patience: 3
   # No. of epochs to train for.
-  max_epochs: 800
+  max_epochs: 400
 
 task:
   train: True
   train_objective:
     energy: mse
     forces: mse
-  primary_val_metric: forces_rmse
-  validate: ["val", "test"]
-  predict: ["val", "test"]
+  primary_val_metric: energy_rmse
+  validate: ["train", "val", "test"]
+  predict: ["train", "val", "test"]
 
-runner: "FTGNN"
+runner: "GNN"
 
 hide_eval_progressbar: True

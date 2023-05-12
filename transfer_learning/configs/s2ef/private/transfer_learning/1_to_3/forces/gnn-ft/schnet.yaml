@@ -91,8 +91,8 @@ task:
     energy: mse
     forces: mse
   primary_val_metric: forces_rmse
-  validate: ["val", "test"]
-  predict: ["val", "test"]
+  validate: ["train", "val", "test"]
+  predict: ["train", "val", "test"]
 
 runner: "FTGNN"
 

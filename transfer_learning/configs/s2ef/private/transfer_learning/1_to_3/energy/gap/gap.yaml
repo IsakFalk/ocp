@@ -9,10 +9,10 @@ dataset:
     normalize_labels: True
   val:
     # path to extxyz files
-    src: data/private/1_abinitio-md_Fe45N2_random-true_val.extxyz
+    src: data/private/3_active-metad_Fe45N2_random-true_val.extxyz
   test:
     # path to extxyz files
-    src: data/private/1_abinitio-md_Fe45N2_random-true_test.extxyz
+    src: data/private/3_active-metad_Fe45N2_random-true_test.extxyz
 
 model:
   gap_params:
@@ -31,7 +31,6 @@ model:
   other_params:
     default_sigma: [0.001, 0.01, 0.0, 0.0]
     e0_method: average
-    force: forces
 
 # Values for logger, such as tagging and name of run
 logger:
@@ -40,7 +39,7 @@ logger:
 
 task:
   train: True
-  validate: ["val", "test"] # metrics
-  predict: ["val", "test"] # prediction
+  validate: ["train", "val", "test"] # metrics
+  predict: ["train", "val", "test"] # prediction
 
 runner: "GAP"

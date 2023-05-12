@@ -40,7 +40,7 @@ logger:
 
 task:
   train: True
-  validate: ["val", "test"] # metrics
-  predict: ["val", "test"] # prediction
+  validate: ["train", "val", "test"] # metrics
+  predict: ["train", "val", "test"] # prediction
 
 runner: "GAP"

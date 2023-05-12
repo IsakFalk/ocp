@@ -14,33 +14,32 @@ dataset:
     # path to extxyz files
     src: data/private/1_abinitio-md_Fe45N2_random-true_test.extxyz
 
-model:
-  gap_params:
-    name: soap
-    atom_sigma: 0.5
-    l_max: 6
-    n_max: 12
-    cutoff: 6.0
-    cutoff_transition_width: 1.0
-    delta: 0.2
-    covariance_type: dot_product
-    n_sparse: 1000
-    zeta: 4
-    energy_scale: 1.0
-    atom_gaussian_width: 1.0
-  other_params:
-    default_sigma: [0.001, 0.01, 0.0, 0.0]
-    e0_method: average
-    force: forces
-
 # Values for logger, such as tagging and name of run
 logger:
   tags: []
-  name: "gap-soap"
+  name: "mekrr-gauss-schnet"
+
+kernel:
+  k0:
+    gaussian
+  k0_params:
+    median_heuristic: True
+  k1:
+    linear
+  # k1_params
+  regressor_params:
+    lmbda: 1.0e-7
+  representation_params:
+    representation_layer: 2
+  model_checkpoint_path: checkpoints/s2ef_efwt/all/schnet/schnet_all_large.pt # Path to load model checkpoint
+
+optim:
+  # Coefficient to use for the force loss. Currently unused as we only train on energy
+  force_loss_coefficient: 0.99 #TODO: Implement
 
 task:
   train: True
-  validate: ["val", "test"] # metrics
-  predict: ["val", "test"] # prediction
+  validate: ["train", "val", "test"]
+  predict: ["train", "val", "test"]
 
-runner: "GAP"
+runner: "MEKRR"
