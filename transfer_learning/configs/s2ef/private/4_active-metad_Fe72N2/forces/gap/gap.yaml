@@ -1,7 +1,7 @@
 dataset:
   train:
     # path to extxyz files
-    src: data/luigi/splits/example-traj-Fe-N2-111_train.xyz
+    src: data/private/4_active-metad_Fe72N2_random-true_train.extxyz
     # If we want to normalize each target value_ i.e. subtract the mean and
     # divide by standard deviation_ then those 'target_mean' and 'target_std'
     # statistics for energies and 'grad_target_mean' and 'grad_target_std'
@@ -9,10 +9,10 @@ dataset:
     normalize_labels: True
   val:
     # path to extxyz files
-    src: data/luigi/splits/example-traj-Fe-N2-111_val.xyz
+    src: data/private/4_active-metad_Fe72N2_random-true_val.extxyz
   test:
     # path to extxyz files
-    src: data/luigi/splits/example-traj-Fe-N2-111_test.xyz
+    src: data/private/4_active-metad_Fe72N2_random-true_test.extxyz
 
 model:
   gap_params:
@@ -31,6 +31,7 @@ model:
   other_params:
     default_sigma: [0.001, 0.01, 0.0, 0.0]
     e0_method: average
+    force: forces
 
 # Values for logger, such as tagging and name of run
 logger:
