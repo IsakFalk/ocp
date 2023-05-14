@@ -20,6 +20,8 @@ logger:
   name: "mekrr-gauss-schnet"
 
 kernel:
+  alpha: 0.0 # Interpolate between w_0 and multi-weight regression
+  aggregation: mean # To use mean or sum, default has been mean
   k0:
     gaussian
   k0_params:
