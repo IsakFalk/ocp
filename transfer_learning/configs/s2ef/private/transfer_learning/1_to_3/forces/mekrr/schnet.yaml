@@ -41,7 +41,7 @@ optim:
 
 task:
   train: True
-  validate: ["train", "val", "test"]
-  predict: ["train", "val", "test"]
+  validate: ["train", "test"]
+  predict: ["train", "test"]
 
 runner: "MEKRR"

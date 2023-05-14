@@ -1,7 +1,7 @@
 dataset:
   train:
     # path to extxyz files
-    src: data/luigi/splits/formula=Fe45N2_surface=111_driver=qe-md_bias=-_train.xyz
+    src: data/private/2_abinitio-metad_Fe45N2_random-true_train.extxyz
     # If we want to normalize each target value_ i.e. subtract the mean and
     # divide by standard deviation_ then those 'target_mean' and 'target_std'
     # statistics for energies and 'grad_target_mean' and 'grad_target_std'
@@ -9,10 +9,10 @@ dataset:
     normalize_labels: True
   val:
     # path to extxyz files
-    src: data/luigi/splits/formula=Fe45N2_surface=111_driver=qe-md_bias=-_val.xyz
+    src: data/private/2_abinitio-metad_Fe45N2_random-true_val.extxyz
   test:
     # path to extxyz files
-    src: data/luigi/splits/formula=Fe45N2_surface=111_driver=qe-md_bias=-_test.xyz
+    src: data/private/2_abinitio-metad_Fe45N2_random-true_test.extxyz
 
 # Values for logger, such as tagging and name of run
 logger:
@@ -20,7 +20,7 @@ logger:
   name: "mekrr-gauss-schnet"
 
 kernel:
-  alpha: 0.0 # Interpolate between w_0 and multi-weight regression
+  alpha: 0.3
   aggregation: mean # To use mean or sum, default has been mean
   k0:
     gaussian
@@ -30,7 +30,7 @@ kernel:
     linear
   # k1_params
   regressor_params:
-    lmbda: 1.0e-6
+    lmbda: 1.0e-7
   representation_params:
     representation_layer: 2
   model_checkpoint_path: checkpoints/s2ef_efwt/all/schnet/schnet_all_large.pt # Path to load model checkpoint
@@ -41,7 +41,7 @@ optim:
 
 task:
   train: True
-  validate: ["train", "val", "test"]
-  predict: ["train", "val", "test"]
+  validate: ["train", "test"]
+  predict: ["train", "test"]
 
 runner: "MEKRR"

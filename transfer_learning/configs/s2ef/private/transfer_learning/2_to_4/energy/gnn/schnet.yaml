@@ -10,7 +10,7 @@ dataset:
   val:
     # path to extxyz files
     src: data/private/4_active-metad_Fe72N2_random-true_val.extxyz
-  test: 
+  test:
     # path to extxyz files
     src: data/private/4_active-metad_Fe72N2_random-true_test.extxyz
 
@@ -98,8 +98,8 @@ task:
     energy: mse
     forces: mse
   primary_val_metric: energy_rmse
-  validate: ["train", "val", "test"]
-  predict: ["train", "val", "test"]
+  validate: ["train", "test"]
+  predict: ["train", "test"]
 
 runner: "GNN"
 
