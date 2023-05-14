@@ -57,8 +57,9 @@ class RFFFeatureMap(torch.nn.Module):
         self.w, self.b = self._sample_w_and_b()
 
     def _sample_w_and_b(self):
-        w = torch.randn(self.D, self.d)
-        b = torch.rand(self.D, 1) * np.pi * 2
+        # Parameter so we can move module to device
+        w = nn.parameter.Parameter(torch.randn(self.D, self.d))
+        b = nn.parameter.Parameter(torch.rand(self.D, 1) * np.pi * 2)
         return w, b
 
     def forward(self, x):
@@ -87,7 +88,7 @@ class MERFFGNN(torch.nn.Module):
         num_atoms = data.natoms[0]
         h = self.gnn(data)
         d = h.shape[-1]
-        mu = self.feature_map(h.reshape(frames, num_atoms, d)).mean(1)
+        mu = self.feature_map(h).reshape(frames, num_atoms, -1).mean(1)
         energy = self.w(mu)
 
         if self.regress_forces:
@@ -100,6 +101,7 @@ class MERFFGNN(torch.nn.Module):
                 )[0]
             )
             return energy, forces
+
         else:
             return energy
 
@@ -217,7 +219,7 @@ class MEKRRGNNTrainer(BaseTrainer):
         self.base_model.eval()
         # Get sigma using median heuristic
         with torch.no_grad():
-            h = self.base_model(Batch.from_data_list(self.datasets["train"])).cpu()
+            h = self.base_model(Batch.from_data_list(self.datasets["train"]).to(self.device)).cpu()
             self.d = h.shape[-1]
             self.sigma = median_heuristic(h.reshape(-1, self.d), h.reshape(-1, self.d))
             del h
@@ -320,7 +322,7 @@ class MEKRRGNNTrainer(BaseTrainer):
                 out = self._forward(batch)
                 loss, losses = self._compute_loss(out, batch)
                 self._backward(
-                    loss  # + self.lmbda * (self.model.w.weight**2).sum()
+                    loss + self.lmbda * (self.model.w.weight**2).sum()
                 )  # NB: we do KRR with lmbda ||w||^2 regularizer
                 self.loss_metrics["energy_loss"].append(aggregate_metric(losses["energy"].item()))
                 self.loss_metrics["forces_loss"].append(aggregate_metric(losses["forces"].item()))
@@ -498,7 +500,7 @@ class MEKRRGNNTrainer(BaseTrainer):
         self.optimizer.step()
 
     # Takes in a new data source and generates predictions on it.
-    @torch.no_grad()
+    #@torch.no_grad()
     def predict(
         self,
         split,
