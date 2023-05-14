@@ -10,9 +10,9 @@ from torch_geometric.data import Batch
 
 from ocpmodels.transfer_learning.common.utils import aggregate_metric
 from ocpmodels.transfer_learning.models.distribution_regression import (
+    EmbeddingKernel,
+    EmbeddingRidgeRegression,
     GaussianKernel,
-    KernelMeanEmbeddingRidgeRegression,
-    LinearMeanEmbeddingKernel,
     median_heuristic,
 )
 
@@ -109,18 +109,26 @@ class MEKRRTrainer(BaseTrainer):
         )
         loader.load_checkpoint(self.kernel_config["model_checkpoint_path"], strict_load=False)
         self.model = loader.model.to(self.device)
+        self.model.eval()
         logging.info("Loaded model from checkpoint successfully!")
         if self.logger is not None:
             self.logger.watch(self.model)
+
+    def get_x_and_z_and_pos(self, split, pos_requires_grad=False):
+        dataset = Batch.from_data_list(self.datasets[split][:])
+        dataset.pos.requires_grad_(pos_requires_grad)
+        X, _ = self.model(dataset.to(self.device))
+        X = X.reshape(-1, self.config["dataset"][split]["num_atoms"], X.shape[-1])
+        ZX = dataset.atomic_numbers.reshape(X.shape[0], self.config["dataset"][split]["num_atoms"], 1).to(self.device)
+        return X, ZX, dataset.pos
 
     def train(self):
         # Set up data, taking care of normalization
         y = self.normalizers["target"].norm(self.datasets["train"].y.float().to(self.device)).reshape(-1, 1)
         # TODO: Implement gradient fitting
         # grad = self.normalizers["grad_target"].norm(self.datasets["train"].force.float().to(self.device))
-        X, _ = self.model(self.datasets["train"].to(self.device))
+        X, ZX, _ = self.get_x_and_z_and_pos("train")
         self.d = X.shape[-1]
-        X = X.reshape(-1, self.config["dataset"]["train"]["num_atoms"], self.d)
 
         # Dispatch to kernel
         if self.config["kernel"].get("k0", "gaussian") == "gaussian":
@@ -138,19 +146,22 @@ class MEKRRTrainer(BaseTrainer):
             raise NotImplementedError
 
         if self.config["kernel"].get("k1", "linear") == "linear":
-            self.k1 = LinearMeanEmbeddingKernel(self.k0)
+            self.k1 = EmbeddingKernel(
+                self.k0,
+                alpha=self.config["kernel"].get("alpha", 0.0),
+                aggregation=self.config["kernel"].get("aggregation", "mean"),
+            )
         else:
             raise NotImplementedError
 
-        self.regressor = KernelMeanEmbeddingRidgeRegression(self.k1, **self.kernel_config["regressor_params"])
+        self.regressor = EmbeddingRidgeRegression(self.k1, **self.kernel_config["regressor_params"])
         assert (
             X.shape[0] == self.dataset_config["train"]["num_frames"]
             and X.shape[1] == self.dataset_config["train"]["num_atoms"]
         ), "X should have shape (num_frames, num_atoms, d)"
-        self.regressor.fit(X, y)
+        self.regressor.fit(X, ZX, y)
 
     def validate(self, split="val"):
-        self.model.eval()
         dataset = self.datasets[split]
         num_atoms = self.dataset_config[split]["num_atoms"]
 
@@ -179,15 +190,12 @@ class MEKRRTrainer(BaseTrainer):
         dataset = self.datasets[split]
         num_atoms = self.dataset_config[split]["num_atoms"]
         # forward pass
-        dataset = Batch.from_data_list(dataset[:]).to(self.device)
-        dataset.pos.requires_grad_(True)
-        X, _ = self.model(dataset)  # (num_frames, num_atoms, d)
-        X = X.reshape(-1, num_atoms, self.d)
+        X, ZX, pos = self.get_x_and_z_and_pos(split, pos_requires_grad=True)
         if self.config["model_attributes"].get("regress_forces", True):
-            out_energy, out_grad = self.regressor.predict_y_and_grad(X, dataset.pos)
+            out_energy, out_grad = self.regressor.predict_y_and_grad(X, ZX, pos)
             out_forces = -out_grad.reshape(-1, 3)
         else:
-            out_energy = self.regressor.predict(X)
+            out_energy = self.regressor.predict(X, ZX)
 
         out_energy = out_energy.view(-1)
         # if out_energy.shape[-1] == 1:

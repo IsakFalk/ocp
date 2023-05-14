@@ -111,6 +111,58 @@ class GaussianGroupEmbeddingKernel(GroupEmbeddingKernel):
         return torch.exp(-k / (2 * self.sigma**2))
 
 
+class EmbeddingKernel:
+    def __init__(self, kernel: Kernel, alpha: int = 0.0, aggregation: str = "mean"):
+        self.kernel = kernel
+        self.alpha = alpha
+        self.aggregation = aggregation  # dispatch on this: mean, sum
+
+    def __call__(self, x: Tensor, zx: Tensor, y: Tensor, zy: Tensor) -> Tensor:
+        return self._embedding_kernel(x, zx, y, zy)
+
+    def _embedding_kernel(self, x: Tensor, zx: Tensor, y: Tensor, zy: Tensor) -> Tensor:
+        t, n, d = x.shape
+        l, m, d = y.shape  # noqa
+        assert zx.shape[:2] == (t, n)
+        assert zy.shape[:2] == (l, m)
+        x = x.reshape(t * n, d)
+        y = y.reshape(l * m, d)
+        k0 = self.kernel(x, y)
+        # The embedding kernel is a (1-a) * agg_c * K + a * group_c * K
+
+        # Linear algebra magic: We make the mask needed for the group embedding kernel
+        # essentially we vectorize the coefficient matrix which for each pair x_t, y_l of systems
+        # has value B_ij = (alpha - 1) * c0^2 + alpha * delta(zx_i, zy_j) c_zx_i * c_zy_j
+        # where c_zx_i and c_zy_j are the number of points in the point clouds of x_t and y_l if we do mean embedding
+        # or just 1 if we do sum embedding
+        zx = zx.reshape(t * n, -1)
+        zy = zy.reshape(l * m, -1)
+
+        delta = (zx[:, None] == zy[None, :]).squeeze()
+
+        agg_c = 1.0
+        if self.aggregation == "mean":
+            agg_c /= n * m
+            # Get all groups and possibly calculate the number
+            groups = torch.unique(torch.cat([zx, zy]))
+            group_nx = (zx[:, None] == groups[None, :]).reshape(t, n, -1).sum(axis=1)
+            group_ny = (zy[:, None] == groups[None, :]).reshape(l, m, -1).sum(axis=1)
+            select_zx = (zx[:, None] == groups[None, :]).reshape(t, n, -1)
+            select_zy = (zy[:, None] == groups[None, :]).reshape(l, m, -1)
+            group_nx_flatten = (select_zx * group_nx[:, None, :]).reshape(t * n, -1).sum(axis=1)
+            group_ny_flatten = (select_zy * group_ny[:, None, :]).reshape(l * m, -1).sum(axis=1)
+            # Normalize by the number of kernels in the group \sum_s K_s / S
+            mask = (1.0 / group_nx_flatten[:, None]) * (1.0 / group_ny_flatten[None, :])
+        elif self.aggregation == "sum":
+            mask = 1.0
+        else:
+            raise ValueError(f"Unknown aggregation {self.aggregation}")
+        group_c = mask * delta
+
+        k = (k0 * ((1 - self.alpha) * agg_c + self.alpha * group_c)).reshape(t, n, l, m).sum(axis=(1, 3))
+        return k
+
+
 # Estimators
 ### Create distribution regression
 ### Output is assumed to be in \R and
@@ -291,3 +343,52 @@ class StandardizedOutputRegression(BaseEstimator, RegressorMixin):
         y_pred = self.scaler.inverse_transform(y_pred)
         grad_pred = self.scaler.std_.item() * grad_pred
         return y_pred, grad_pred
+
+
+class EmbeddingRidgeRegression(BaseEstimator, RegressorMixin):
+    def __init__(self, kernel: EmbeddingKernel, lmbda: float = 1.0):
+        self.kernel = kernel
+        self.lmbda = lmbda
+
+    def fit(self, X: Tensor, ZX: Tensor, y: Tensor):
+        assert len(X.shape) == 3
+        assert len(ZX.shape) == 3
+        assert len(y.shape) == 2
+        self.X_ = X
+        self.ZX_ = ZX
+        self.y_ = y
+
+        k = self.kernel(X, ZX, X, ZX)
+        # klmbda = k + torch.eye(k.shape[0]) * self.lmbda
+        # Below is the same as above but avoids the creation of a new tensor on a different device
+        klmbda = (k - k.diag().diag()) + (self.lmbda * self.X_.shape[0] + k.diag()).diag()
+        self.k_ = k
+        self.alpha_ = LA.solve(klmbda, y)
+        return self
+
+    def predict(self, X: Tensor, ZX: Tensor) -> Tensor:
+        assert len(X.shape) == 3
+        assert len(ZX.shape) == 3
+        k = self.kernel(X, ZX, self.X_, self.ZX_)
+        return k @ self.alpha_
+
+    def predict_y_and_grad(self, X: Tensor, ZX: Tensor, pos: Tensor) -> Tensor:
+        assert len(X.shape) == 3
+        T, num_atoms, d = X.shape
+        # self.X_.requires_grad_(True)
+        k = self.kernel(X, ZX, self.X_, self.ZX_)
+        y_pred = k @ self.alpha_
+        grad_pred = (
+            torch.autograd.grad(
+                y_pred,
+                pos,
+                grad_outputs=torch.ones_like(y_pred),
+                create_graph=False,
+                allow_unused=False,
+            )[0]
+        ).reshape(T, num_atoms, -1)
+        return y_pred, grad_pred
+
+    def score(self, X: Tensor, ZX: Tensor, y: Tensor) -> float:
+        y_pred = self.predict(X, ZX)
+        return float(mean_squared_error(y, y_pred))

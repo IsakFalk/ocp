@@ -166,3 +166,7 @@ class FTGNNRunner(BaseRunner):
             self.trainer.train(
                 disable_eval_tqdm=self.config.get("hide_eval_progressbar", False),
             )
+        for split in self.config["task"]["validate"]:
+            self.trainer.validate(split=split, final=True)
+        for split in self.config["task"]["predict"]:
+            self.trainer.predict(split=split)

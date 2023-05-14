@@ -86,7 +86,7 @@ optim:
   max_epochs: 100
 
 task:
-  train: True
+  train: False
   train_objective:
     energy: mse
     forces: mse
