@@ -30,7 +30,10 @@ model:
     atom_gaussian_width: 1.0
   other_params:
     default_sigma: [0.001, 0.01, 0.0, 0.0]
-    e0_method: average
+    #e0_method: average
+    e0:
+      Fe: -759.0490360007368
+      N: -262.3545400511281
 
 # Values for logger, such as tagging and name of run
 logger:

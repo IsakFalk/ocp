@@ -98,6 +98,12 @@ class GAPTrainer(BaseTrainer):
         for key, val in kwargs.items():
             if isinstance(val, list):
                 kw_string += f"{key}=" + "{" + " ".join([f"{x:.1e}" for x in val]) + "} "
+            elif key == "e0":
+                kw_string += f"{key}=" + "{"
+                for e0, e0val in val.items():
+                    kw_string += f"{e0}:{e0val}:"
+                kw_string += "} "
+                kw_string = kw_string.replace(":}", "}")
             else:
                 kw_string += f"{key}={val} "
         return kw_string.rstrip(" ")
@@ -116,6 +122,7 @@ class GAPTrainer(BaseTrainer):
 
         self.other_kwargs = self.config["model_attributes"]["other_params"]
         self.other_kw_string = self._build_cmd_string(self.other_kwargs)
+        print(self.other_kw_string)
 
         self.gap_fit_kw_string = " ".join([self.gap_kw_string, self.other_kw_string])
 
