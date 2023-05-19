@@ -183,6 +183,7 @@ class MEKRRTrainer(BaseTrainer):
                 step=0,
                 split=split,
             )
+            self.logger.log({"eval_time": end_time - start_time}, step=0, split=split)
 
         return metrics
 

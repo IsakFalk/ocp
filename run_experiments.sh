@@ -12,13 +12,19 @@ method_paths=(
 ### First private dirs
 
 # Define array of private directories
+# private_dirs=(
+#     1_abinitio-md_Fe45N2
+#     2_abinitio-metad_Fe45N2
+# #    2_abinitio-metad_Fe45N2-nonrandom
+#     3_active-metad_Fe45N2
+#     4_active-metad_Fe72N2
+# )
+
 private_dirs=(
-    1_abinitio-md_Fe45N2
-    2_abinitio-metad_Fe45N2
-#    2_abinitio-metad_Fe45N2-nonrandom
-    3_active-metad_Fe45N2
-    4_active-metad_Fe72N2
+    transfer_learning/2_to_4
+    transfer_learning/3_to_4
 )
+
 
 # Loop over all private directories for all methods to run scripts for energies and forces
 for private_dir in "${private_dirs[@]}"; do
@@ -44,22 +50,22 @@ for private_dir in "${private_dirs[@]}"; do
 done
 
 ### Now formate dataset
-for method_path in "${method_paths[@]}"; do
+# for method_path in "${method_paths[@]}"; do
 
-    if [["$method_path" == *"mekrr"*]]; then
-        # Run script for energies
-        python transfer_learning/main.py \
-            --config-yml transfer_learning/configs/s2ef/formate/energy/"$method_path" \
-            --run-dir runs\
-            --cpu
-    else
-        python transfer_learning/main.py \
-            --config-yml transfer_learning/configs/s2ef/formate/energy/energy/"$method_path" \
-            --run-dir runs
-    fi
+#     if [["$method_path" == *"mekrr"*]]; then
+#         # Run script for energies
+#         python transfer_learning/main.py \
+#             --config-yml transfer_learning/configs/s2ef/formate/energy/"$method_path" \
+#             --run-dir runs\
+#             --cpu
+#     else
+#         python transfer_learning/main.py \
+#             --config-yml transfer_learning/configs/s2ef/formate/energy/energy/"$method_path" \
+#             --run-dir runs
+#     fi
 
-    # # Run script for forces
-    # python transfer_learning/main.py \
-        #   --config-yml transfer_learning/configs/s2ef/formate/forces/"$method_path" \
-        #   --run-dir runs
-done
+#     # # Run script for forces
+#     # python transfer_learning/main.py \
+#         #   --config-yml transfer_learning/configs/s2ef/formate/forces/"$method_path" \
+#         #   --run-dir runs
+# done
