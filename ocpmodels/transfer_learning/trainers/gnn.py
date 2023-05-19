@@ -2,6 +2,7 @@ import copy
 import datetime
 import logging
 import re
+import time
 from pathlib import Path
 from pprint import pprint
 
@@ -219,6 +220,7 @@ class GNNTrainer(BaseTrainer):
 
     def train(self, disable_eval_tqdm=False):
         # ensure_fitted(self._unwrapped_model, warn=True)
+        start_time = time.time()
 
         eval_every = self.config["optim"].get("eval_every", len(self.loaders["train"]))
         checkpoint_every = self.config["optim"].get("checkpoint_every", eval_every)
@@ -287,6 +289,9 @@ class GNNTrainer(BaseTrainer):
 
             if checkpoint_every == -1:
                 self.save(checkpoint_file="checkpoint.pt", training_state=True)
+        end_time = time.time()
+        if self.logger is not None:
+            self.logger.log({"train_time": end_time - start_time}, step=0, split="train")
 
         # Retrieve best model
         self.model.load_state_dict(torch.load(self.checkpoint_dir / "best_checkpoint.pt")["state_dict"])
@@ -311,6 +316,7 @@ class GNNTrainer(BaseTrainer):
 
     @torch.no_grad()
     def validate(self, split="val", disable_tqdm=False, final=False):
+        start_time = time.time()
         self.model.eval()
         loader = self.loaders[split]
 
@@ -336,6 +342,7 @@ class GNNTrainer(BaseTrainer):
         targets["forces"] = torch.stack(targets["forces"])
 
         metrics = self.evaluator.eval(predictions, targets)
+        end_time = time.time()
 
         if not final:
             # If we are training, we use this to get a nice plot in wandb
@@ -353,6 +360,12 @@ class GNNTrainer(BaseTrainer):
                 step=self.step,
                 split=split,
             )
+            self.logger.log(
+                log_dict,
+                step=0,
+                split=split,
+            )
+            self.logger.log({"eval_time": end_time - start_time}, step=0, split=split)
 
         return metrics
 

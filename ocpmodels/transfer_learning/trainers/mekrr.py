@@ -1,6 +1,7 @@
 import copy
 import datetime
 import logging
+import time
 from pathlib import Path
 from pprint import pprint
 
@@ -13,6 +14,7 @@ from ocpmodels.transfer_learning.models.distribution_regression import (
     EmbeddingKernel,
     EmbeddingRidgeRegression,
     GaussianKernel,
+    LinearKernel,
     median_heuristic,
 )
 
@@ -123,6 +125,7 @@ class MEKRRTrainer(BaseTrainer):
         return X, ZX, dataset.pos
 
     def train(self):
+        start_time = time.time()
         # Set up data, taking care of normalization
         y = self.normalizers["target"].norm(self.datasets["train"].y.float().to(self.device)).reshape(-1, 1)
         # TODO: Implement gradient fitting
@@ -142,6 +145,8 @@ class MEKRRTrainer(BaseTrainer):
             else:
                 self.k0_sigma = self.config["kernel"]["k0_params"].get("sigma", 1.0)
             self.k0 = GaussianKernel(self.k0_sigma)
+        elif self.config["kernel"].get("k0", "linear") == "linear":
+            self.k0 = LinearKernel()
         else:
             raise NotImplementedError
 
@@ -160,8 +165,12 @@ class MEKRRTrainer(BaseTrainer):
             and X.shape[1] == self.dataset_config["train"]["num_atoms"]
         ), "X should have shape (num_frames, num_atoms, d)"
         self.regressor.fit(X, ZX, y)
+        end_time = time.time()
+        if self.logger is not None:
+            self.logger.log({"train_time": end_time - start_time}, step=0, split="train")
 
     def validate(self, split="val"):
+        start_time = time.time()
         dataset = self.datasets[split]
         num_atoms = self.dataset_config[split]["num_atoms"]
 
@@ -171,6 +180,7 @@ class MEKRRTrainer(BaseTrainer):
             "forces": dataset.force.float().to(self.device).reshape(-1, num_atoms, 3),
         }
         metrics = self.evaluator.eval(predictions, targets)
+        end_time = time.time()
 
         log_dict = {k: metrics[k] for k in metrics}
         log_dict.update({"epoch": 0})

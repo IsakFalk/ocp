@@ -67,6 +67,14 @@ class GaussianKernel(Kernel):
         return torch.exp(-D2 / (2 * self.sigma**2))
 
 
+class LinearKernel(Kernel):
+    def __init__(self):
+        pass
+
+    def __call__(self, x: Tensor, y: Tensor) -> Tensor:
+        return torch.matmul(x, y.T)
+
+
 # Kernel Mean Embeddings
 class LinearMeanEmbeddingKernel(MeanEmbeddingKernel):
     def __init__(self, kernel: Kernel):

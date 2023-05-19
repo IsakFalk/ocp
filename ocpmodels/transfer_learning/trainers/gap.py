@@ -3,6 +3,7 @@ import datetime
 import logging
 import random
 import subprocess
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from pprint import pprint
@@ -115,6 +116,7 @@ class GAPTrainer(BaseTrainer):
         self.load_metrics()
 
     def train(self):
+        start_time = time.time()
         self.gap_kwargs = self.config["model_attributes"]["gap_params"]
         self.gap_name = self.config["model_attributes"]["gap_params"].pop("name")
         self.gap_kw_string = self._build_cmd_string(self.gap_kwargs)
@@ -135,8 +137,12 @@ class GAPTrainer(BaseTrainer):
         cmd.append(f"gap_file={self.aux_dir / 'gap_train_output.xml'}")
         cmd.append(self.gap_fit_kw_string)
         subprocess.run(cmd, check=True)
+        end_time = time.time()
+        if self.logger is not None:
+            self.logger.log({"train_time": end_time - start_time}, step=0, split="train")
 
     def validate(self, split="val"):
+        start_time = time.time()
         dataset = self.datasets[split]
         num_atoms = self.dataset_config[split]["num_atoms"]
 
@@ -148,6 +154,7 @@ class GAPTrainer(BaseTrainer):
             .to(self.device),
         }
         metrics = self.evaluator.eval(predictions, targets)
+        end_time = time.time()
 
         log_dict = {k: metrics[k] for k in metrics}
         log_dict.update({"epoch": 0})
@@ -160,6 +167,7 @@ class GAPTrainer(BaseTrainer):
                 step=0,
                 split=split,
             )
+            self.logger.log({"eval_time": end_time - start_time}, step=0, split=split)
 
         return metrics
 
